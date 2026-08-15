@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SCADA Dashboard - GitHub Pages OTA</title>
+  
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    :root {
+      --bg-primary: #0f172a;
+      --bg-surface: #1e293b;
+      --bg-card: #334155;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent-blue: #38bdf8;
+      --accent-green: #4ade80;
+      --accent-orange: #fb923c;
+      --accent-red: #f87171;
+      --border-color: #475569;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+    body { background-color: var(--bg-primary); color: var(--text-main); min-height: 100vh; padding: 24px; }
+    .container { max-width: 1200px; margin: 0 auto; }
+
+    .navbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border-color); }
+    .navbar h1 { font-size: 20px; color: var(--accent-blue); display: flex; align-items: center; gap: 10px; }
+    .status-badge { background: rgba(74, 222, 128, 0.1); padding: 6px 12px; border-radius: 20px; color: var(--accent-green); font-size: 13px; font-weight: 600; }
+
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .kpi-card { background: var(--bg-surface); padding: 18px; border-radius: 10px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 16px; }
+    .kpi-icon { width: 44px; height: 44px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+    .kpi-info .title { font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
+    .kpi-info .value { font-size: 22px; font-weight: 700; margin-top: 2px; }
+
+    .main-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }
+    @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
+
+    .card { background: var(--bg-surface); border-radius: 10px; border: 1px solid var(--border-color); padding: 20px; margin-bottom: 24px; }
+    .card-title { font-size: 16px; font-weight: 600; color: var(--text-main); display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+
+    .form-group { margin-bottom: 14px; }
+    .form-label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+    .form-control { width: 100%; padding: 8px 12px; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-main); outline: none; }
+    .form-control:focus { border-color: var(--accent-blue); }
+    
+    .btn { padding: 8px 16px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: 13px; width: 100%; }
+    .btn-primary { background: var(--accent-blue); color: #0f172a; }
+    .btn-success { background: var(--accent-green); color: #0f172a; }
+
+    .table-container { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th { background: var(--bg-primary); padding: 10px; font-size: 12px; color: var(--text-muted); border-bottom: 1px solid var(--border-color); }
+    td { padding: 12px 10px; border-bottom: 1px solid var(--border-color); font-size: 13px; }
+
+    .badge-fw { background: rgba(56, 189, 248, 0.15); color: var(--accent-blue); padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="navbar">
+    <h1><i class="fa-solid fa-chart-line"></i> SCADA PULSE DASHBOARD (GitHub Pages Host)</h1>
+    <div class="status-badge"><i class="fa-solid fa-bolt"></i> Firebase Connected</div>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background: rgba(56, 189, 248, 0.15); color: var(--accent-blue);"><i class="fa-solid fa-server"></i></div>
+      <div class="kpi-info"><div class="title">Tổng Trạm</div><div class="value" id="kpi-total-devices">0</div></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background: rgba(74, 222, 128, 0.15); color: var(--accent-green);"><i class="fa-solid fa-arrow-down-long"></i></div>
+      <div class="kpi-info"><div class="title">Tổng Xung IN</div><div class="value" id="kpi-total-in">0</div></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background: rgba(251, 146, 60, 0.15); color: var(--accent-orange);"><i class="fa-solid fa-arrow-up-long"></i></div>
+      <div class="kpi-info"><div class="title">Tổng Xung OUT</div><div class="value" id="kpi-total-out">0</div></div>
+    </div>
+  </div>
+
+  <div class="main-grid">
+    <div>
+      <div class="card">
+        <div class="card-title"><i class="fa-solid fa-list-check"></i> Danh Sách Trạm Giám Sát</div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Thiết Bị</th>
+                <th>Xung IN</th>
+                <th>Xung OUT</th>
+                <th>FW Hiện Tại</th>
+                <th>Target FW</th>
+                <th>Lưu</th>
+              </tr>
+            </thead>
+            <tbody id="device-table-body">
+              <tr><td colspan="6" style="text-align:center;">Đang tải dữ liệu...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><i class="fa-solid fa-chart-bar"></i> Biểu Đồ Sản Lượng Xung</div>
+        <canvas id="pulseChart" height="110"></canvas>
+      </div>
+    </div>
+
+    <div>
+      <!-- FORM NHẬP LINK FIRMWARE TỪ GITHUB RELEASES -->
+      <div class="card">
+        <div class="card-title"><i class="fa-brands fa-github"></i> Kích Hoạt OTA Cho Toàn Hệ Thống</div>
+        
+        <div class="form-group">
+          <label class="form-label">Tên Phiên Bản Mới</label>
+          <input type="text" id="fw-version" class="form-control" placeholder="Ví dụ: 1.0.1">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Dán Direct Link File .bin từ GitHub Releases</label>
+          <input type="text" id="fw-bin-url" class="form-control" placeholder="https://github.com/user/repo/releases/download/v1.0.1/firmware.bin">
+        </div>
+
+        <button class="btn btn-success" onclick="deployOtaToAll()">
+          <i class="fa-solid fa-rocket"></i> Nạp Firmware Cho Tất Cả Trạm
+        </button>
+
+        <div id="status-msg" style="margin-top: 10px; font-size: 12px; text-align: center; font-weight: bold;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+<script>
+  // 1. THAY URL FIREBASE DATABASE CỦA BẠN VÀO ĐÂY
+  const firebaseConfig = {
+    databaseURL: "https://your-project-id-default-rtdb.firebaseio.com"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  // 2. CHART.JS
+  const ctx = document.getElementById('pulseChart').getContext('2d');
+  const pulseChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: [],
+      datasets: [
+        { label: 'Xung IN', data: [], backgroundColor: '#38bdf8', borderRadius: 4 },
+        { label: 'Xung OUT', data: [], backgroundColor: '#4ade80', borderRadius: 4 }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: '#f8fafc' } } },
+      scales: {
+        x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+        y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
+      }
+    }
+  });
+
+  // 3. LISTEN THIẾT BỊ TỪ FIREBASE
+  db.ref("devices").on("value", (snapshot) => {
+    const data = snapshot.val();
+    const tbody = document.getElementById("device-table-body");
+    tbody.innerHTML = "";
+
+    if (!data) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Chưa có dữ liệu.</td></tr>';
+      return;
+    }
+
+    let devCount = 0, sumIn = 0, sumOut = 0;
+    let labels = [], dataIn = [], dataOut = [];
+
+    for (let id in data) {
+      devCount++;
+      let dev = data[id];
+      let name = dev.device_name || "Tram_" + id.substring(id.length - 4);
+      let inCnt = dev.input_count || 0;
+      let outCnt = dev.output_count || 0;
+
+      sumIn += inCnt; sumOut += outCnt;
+      labels.push(name); dataIn.push(inCnt); dataOut.push(outCnt);
+
+      let row = `<tr>
+        <td><b>${name}</b><br><span style="font-size:10px; color:var(--text-muted);">${id}</span></td>
+        <td><b style="color:var(--accent-blue);">${inCnt.toLocaleString()}</b></td>
+        <td><b style="color:var(--accent-green);">${outCnt.toLocaleString()}</b></td>
+        <td><span class="badge-fw">v${dev.firmware || '1.0.0'}</span></td>
+        <td><input type="text" id="target-${id}" class="form-control" value="${dev.target_fw || dev.firmware || '1.0.0'}" style="width:65px; padding:2px 6px;"></td>
+        <td>
+          <button class="btn btn-primary" style="padding:4px 8px; width:auto;" onclick="saveSingleOTA('${id}')">
+            <i class="fa-solid fa-floppy-disk"></i>
+          </button>
+        </td>
+      </tr>`;
+      tbody.innerHTML += row;
+    }
+
+    document.getElementById("kpi-total-devices").innerText = devCount;
+    document.getElementById("kpi-total-in").innerText = sumIn.toLocaleString();
+    document.getElementById("kpi-total-out").innerText = sumOut.toLocaleString();
+
+    pulseChart.data.labels = labels;
+    pulseChart.data.datasets[0].data = dataIn;
+    pulseChart.data.datasets[1].data = dataOut;
+    pulseChart.update();
+  });
+
+  function saveSingleOTA(id) {
+    let targetFw = document.getElementById(`target-${id}`).value.trim();
+    db.ref(`devices/${id}`).update({ target_fw: targetFw }).then(() => {
+      alert(`Đã lưu Target FW v${targetFw} cho trạm ${id}`);
+    });
+  }
+
+  // 4. ĐẨY LINK FIRMWARE TỪ GITHUB RELEASES SANG FIREBASE
+  function deployOtaToAll() {
+    let version = document.getElementById("fw-version").value.trim();
+    let binUrl = document.getElementById("fw-bin-url").value.trim();
+    let statusMsg = document.getElementById("status-msg");
+
+    if (!version || !binUrl) {
+      alert("Vui lòng điền đầy đủ Tên Phiên Bản và Direct Link File .bin!");
+      return;
+    }
+
+    statusMsg.style.color = "var(--accent-blue)";
+    statusMsg.innerText = "Đang đồng bộ lệnh OTA tới tất cả các trạm...";
+
+    db.ref("devices").once("value", (snapshot) => {
+      let devs = snapshot.val();
+      let updates = {};
+
+      for (let id in devs) {
+        updates[`devices/${id}/target_fw`] = version;
+        updates[`devices/${id}/bin_url`] = binUrl;
+      }
+
+      db.ref().update(updates).then(() => {
+        statusMsg.style.color = "var(--accent-green)";
+        statusMsg.innerText = "ĐA ĐỒNG BỘ CẤU HÌNH OTA THÀNH CÔNG!";
+        alert(`Đã kích hoạt bản cập nhật v${version}!\nCác trạm ESP8266 sẽ tự tải file .bin từ GitHub về nạp khi cắm điện.`);
+      }).catch(err => {
+        statusMsg.style.color = "var(--accent-red)";
+        statusMsg.innerText = "Lỗi: " + err.message;
+      });
+    });
+  }
+</script>
+
+</body>
+</html>
