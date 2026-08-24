@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Multi-ESP32 BLE Monitor Dashboard</title>
+  <title>Multi-ESP32 BLE Dashboard</title>
   <style>
     :root {
       --bg-color: #121212;
@@ -92,10 +92,26 @@
       width: 100%;
     }
 
+    .device-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
     .esp-name {
       font-size: 16px;
       font-weight: 700;
       color: #00ff66;
+      font-family: monospace;
+    }
+
+    .esp-version {
+      font-size: 11px;
+      color: #ffca28;
+      background: rgba(255, 202, 40, 0.1);
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 202, 40, 0.3);
       font-family: monospace;
     }
 
@@ -128,7 +144,6 @@
     .btn-reconnect { background: #0288d1; color: white; }
     .btn-disconnect { background: #d32f2f; color: white; }
 
-    /* --- METRICS --- */
     .metrics {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -175,7 +190,7 @@
       .btn-add { width: auto; }
       .esp-grid { grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); }
       .esp-card-header { flex-direction: row; justify-content: space-between; align-items: center; }
-      .device-info { width: auto; }
+      .device-info { width: auto; gap: 15px; }
       .card-actions { width: auto; }
       .btn-action { flex: initial; }
       .esp-log { height: 180px; font-size: 12px; }
@@ -317,11 +332,14 @@
     function parseAndUpdateUI(deviceId, rawLog) {
       appendDeviceLog(deviceId, rawLog);
 
-      // Regex bóc tách Nhiệt độ, Xung IN, Xung OUT
+      // Nhận Version khi mới kết nối
+      const verMatch  = rawLog.match(/VER:\s*([^\s|]+)/);
+      // Nhận Nhiệt độ, Xung IN, Xung OUT định kỳ
       const tempMatch = rawLog.match(/TEMP:\s*([\d\.]+)/);
       const inMatch   = rawLog.match(/IN:\s*(\d+)/);
       const outMatch  = rawLog.match(/OUT:\s*(\d+)/);
 
+      if (verMatch)  document.getElementById(`ver-${deviceId}`).innerText  = "v" + verMatch[1].trim();
       if (tempMatch) document.getElementById(`temp-${deviceId}`).innerText = tempMatch[1] + "°C";
       if (inMatch)   document.getElementById(`in-${deviceId}`).innerText   = inMatch[1];
       if (outMatch)  document.getElementById(`out-${deviceId}`).innerText  = outMatch[1];
@@ -333,7 +351,10 @@
         <div class="esp-card" id="card-${device.id}">
           <div class="esp-card-header">
             <div class="device-info">
-              <span class="esp-name">${device.name || 'ESP32'}</span>
+              <div class="device-title">
+                <span class="esp-name">${device.name || 'ESP32'}</span>
+                <span class="esp-version" id="ver-${device.id}">v--</span>
+              </div>
               <span id="badge-${device.id}" class="status-badge status-disconnected">ĐÃ NGẮT</span>
             </div>
             <div class="card-actions">
