@@ -3,11 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>ESP32 BLE Control Center</title>
+  <title>ESP32 BLE Control Center - Advanced</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
   
+  <!-- Tích hợp Chart.js từ CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
   <style>
     :root {
       --bg-dark: #0b0f17;
@@ -24,12 +27,7 @@
       --font-sans: 'Inter', sans-serif;
     }
 
-    * { 
-      box-sizing: border-box; 
-      -webkit-tap-highlight-color: transparent;
-      margin: 0;
-      padding: 0;
-    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
 
     body {
       font-family: var(--font-sans);
@@ -58,45 +56,28 @@
       box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
     }
 
-    .header-title-group {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
+    .header-title-group { display: flex; align-items: center; gap: 12px; }
 
     .brand-icon {
-      width: 12px;
-      height: 12px;
+      width: 12px; height: 12px;
       background: var(--accent-cyan);
       border-radius: 50%;
       box-shadow: 0 0 12px var(--accent-cyan);
     }
 
     .header-title {
-      font-size: 1.25rem;
-      font-weight: 700;
-      letter-spacing: -0.02em;
+      font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em;
       background: linear-gradient(135deg, #fff 0%, #a5f3fc 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     }
 
     .btn-add {
       background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
-      color: #ffffff;
-      font-weight: 600;
-      padding: 12px 20px;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 10px;
-      cursor: pointer;
-      font-size: 14px;
-      width: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      transition: all 0.2s ease;
-      box-shadow: 0 4px 14px rgba(2, 132, 199, 0.3);
+      color: #ffffff; font-weight: 600; padding: 12px 20px;
+      border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 10px;
+      cursor: pointer; font-size: 14px; width: 100%;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      transition: all 0.2s ease; box-shadow: 0 4px 14px rgba(2, 132, 199, 0.3);
     }
 
     .btn-add:hover {
@@ -106,106 +87,58 @@
     }
 
     /* Grid Layout */
-    .esp-grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 20px;
-    }
+    .esp-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
 
     /* Device Card */
     .esp-card {
       background: var(--card-bg);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border-radius: 16px;
-      padding: 20px;
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      border-radius: 16px; padding: 20px;
       border: 1px solid var(--card-border);
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      transition: border-color 0.3s ease;
+      display: flex; flex-direction: column; gap: 16px;
+      transition: all 0.3s ease;
     }
 
-    .esp-card:hover {
-      border-color: rgba(0, 242, 255, 0.2);
+    /* Trạng thái Cảnh báo Nguy hiểm (Alarm Glow) */
+    .esp-card.card-alarm {
+      border-color: #ef4444 !important;
+      box-shadow: 0 0 25px rgba(239, 68, 68, 0.4) !important;
+      animation: alertBlink 1.5s infinite alternate;
+    }
+
+    @keyframes alertBlink {
+      0% { background: rgba(239, 68, 68, 0.1); }
+      100% { background: var(--card-bg); }
     }
 
     .esp-card-header {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-      padding-bottom: 14px;
+      display: flex; flex-direction: column; gap: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 14px;
     }
 
-    .device-info {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      width: 100%;
-    }
-
-    .device-title {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .esp-name {
-      font-size: 16px;
-      font-weight: 700;
-      color: #ffffff;
-      font-family: var(--font-mono);
-      letter-spacing: -0.5px;
-    }
+    .device-info { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+    .device-title { display: flex; align-items: center; gap: 10px; }
+    .esp-name { font-size: 16px; font-weight: 700; color: #ffffff; font-family: var(--font-mono); }
 
     .esp-version {
-      font-size: 10px;
-      color: var(--accent-cyan);
-      background: rgba(0, 242, 255, 0.08);
-      padding: 3px 8px;
-      border-radius: 6px;
-      border: 1px solid rgba(0, 242, 255, 0.25);
-      font-family: var(--font-mono);
-      font-weight: 700;
+      font-size: 10px; color: var(--accent-cyan);
+      background: rgba(0, 242, 255, 0.08); padding: 3px 8px;
+      border-radius: 6px; border: 1px solid rgba(0, 242, 255, 0.25);
+      font-family: var(--font-mono); font-weight: 700;
     }
 
     /* Pulse Status Indicator */
     .status-container {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 11px;
-      font-weight: 600;
-      font-family: var(--font-mono);
+      display: flex; align-items: center; gap: 6px;
+      font-size: 11px; font-weight: 600; font-family: var(--font-mono);
     }
-
-    .status-led {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      display: inline-block;
-    }
-
-    .status-connected .status-led {
-      background-color: var(--status-connected);
-      box-shadow: 0 0 10px var(--status-connected);
-      animation: pulse 2s infinite;
-    }
+    .status-led { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .status-connected .status-led { background-color: var(--status-connected); box-shadow: 0 0 10px var(--status-connected); animation: pulse 2s infinite; }
     .status-connected { color: var(--status-connected); }
-
-    .status-reconnecting .status-led {
-      background-color: var(--status-reconnect);
-      box-shadow: 0 0 10px var(--status-reconnect);
-      animation: pulse 1s infinite;
-    }
+    .status-reconnecting .status-led { background-color: var(--status-reconnect); box-shadow: 0 0 10px var(--status-reconnect); animation: pulse 1s infinite; }
     .status-reconnecting { color: var(--status-reconnect); }
-
-    .status-disconnected .status-led {
-      background-color: var(--status-disconnected);
-      box-shadow: 0 0 8px var(--status-disconnected);
-    }
+    .status-disconnected .status-led { background-color: var(--status-disconnected); box-shadow: 0 0 8px var(--status-disconnected); }
     .status-disconnected { color: var(--status-disconnected); }
 
     @keyframes pulse {
@@ -214,118 +147,61 @@
       100% { opacity: 1; transform: scale(1); }
     }
 
-    /* Actions */
-    .card-actions {
-      display: flex;
-      gap: 8px;
-      width: 100%;
-    }
+    .card-actions { display: flex; gap: 8px; width: 100%; }
 
     .btn-action {
-      flex: 1;
-      border: none;
-      padding: 9px 12px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 12px;
-      font-weight: 600;
-      transition: all 0.2s ease;
-      font-family: var(--font-sans);
+      flex: 1; border: none; padding: 8px 12px; border-radius: 8px;
+      cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s ease;
     }
-
-    .btn-reconnect {
-      background: rgba(59, 130, 246, 0.15);
-      color: #60a5fa;
-      border: 1px solid rgba(59, 130, 246, 0.3);
-    }
-    .btn-reconnect:hover {
-      background: rgba(59, 130, 246, 0.3);
-      color: #fff;
-    }
-
-    .btn-disconnect {
-      background: rgba(239, 68, 68, 0.12);
-      color: #f87171;
-      border: 1px solid rgba(239, 68, 68, 0.3);
-    }
-    .btn-disconnect:hover {
-      background: rgba(239, 68, 68, 0.25);
-      color: #fff;
-    }
+    .btn-reconnect { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
+    .btn-reconnect:hover { background: rgba(59, 130, 246, 0.3); color: #fff; }
+    .btn-disconnect { background: rgba(239, 68, 68, 0.12); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .btn-disconnect:hover { background: rgba(239, 68, 68, 0.25); color: #fff; }
 
     /* Metrics Grid */
-    .metrics {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-    }
-
+    .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
     .metric-box {
-      background: rgba(11, 15, 23, 0.6);
-      border: 1px solid rgba(255, 255, 255, 0.04);
-      padding: 12px 8px;
-      border-radius: 10px;
-      text-align: center;
-      transition: transform 0.2s ease;
+      background: rgba(11, 15, 23, 0.6); border: 1px solid rgba(255, 255, 255, 0.04);
+      padding: 12px 8px; border-radius: 10px; text-align: center;
+    }
+    .metric-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-bottom: 4px; }
+    .metric-val { font-size: 16px; font-weight: 700; color: #ffffff; font-family: var(--font-mono); }
+
+    /* Khung Biểu đồ Chart.js */
+    .chart-container {
+      position: relative; height: 160px; width: 100%;
+      background: rgba(11, 15, 23, 0.5); border-radius: 10px;
+      padding: 8px; border: 1px solid rgba(255, 255, 255, 0.04);
     }
 
-    .metric-box:hover {
-      transform: translateY(-2px);
-      background: rgba(11, 15, 23, 0.8);
+    /* Terminal Log & Filters */
+    .log-header {
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;
     }
-
-    .metric-label {
-      font-size: 10px;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      font-weight: 600;
-      margin-bottom: 4px;
+    .log-title { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; }
+    .filter-btn-group { display: flex; gap: 4px; }
+    .btn-filter {
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+      color: var(--text-muted); font-size: 9px; padding: 2px 6px; border-radius: 4px; cursor: pointer;
     }
+    .btn-filter.active { background: var(--accent-blue); color: #fff; border-color: var(--accent-blue); }
 
-    .metric-val {
-      font-size: 16px;
-      font-weight: 700;
-      color: #ffffff;
-      font-family: var(--font-mono);
-    }
-
-    /* Terminal Console Log */
     .esp-log {
-      background: #05070a;
-      color: #10b981;
-      font-family: var(--font-mono);
-      padding: 12px;
-      height: 140px;
-      overflow-y: auto;
-      font-size: 11px;
-      line-height: 1.5;
-      border-radius: 10px;
-      white-space: pre-wrap;
-      word-break: break-all;
+      background: #05070a; color: #10b981; font-family: var(--font-mono);
+      padding: 10px; height: 130px; overflow-y: auto; font-size: 11px;
+      line-height: 1.5; border-radius: 8px; white-space: pre-wrap; word-break: break-all;
       border: 1px solid rgba(255, 255, 255, 0.05);
-      box-shadow: inset 0 2px 8px rgba(0,0,0,0.8);
     }
 
-    .esp-log::-webkit-scrollbar {
-      width: 4px;
-    }
-    .esp-log::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 4px;
-    }
-
-    /* Desktop View */
     @media (min-width: 640px) {
       body { padding: 24px; }
       .header { flex-direction: row; justify-content: space-between; align-items: center; }
       .btn-add { width: auto; }
-      .esp-grid { grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); }
+      .esp-grid { grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); }
       .esp-card-header { flex-direction: row; justify-content: space-between; align-items: center; }
       .device-info { width: auto; gap: 16px; }
       .card-actions { width: auto; }
       .btn-action { flex: initial; padding: 7px 14px; }
-      .esp-log { height: 160px; }
     }
   </style>
 </head>
@@ -337,7 +213,7 @@
       <h2 class="header-title">ESP32 BLE Control Center</h2>
     </div>
     <button class="btn-add" onclick="addNewESP32()">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
       THÊM THIẾT BỊ BLE
     </button>
   </div>
@@ -349,7 +225,25 @@
     const CHARACTERISTIC_UUID_RX = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
     const CHARACTERISTIC_UUID_TX = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
 
+    const TEMP_ALARM_THRESHOLD = 50.0; // Ngưỡng nhiệt độ cảnh báo (°C)
     const connectedDevices = new Map();
+
+    // Audio Context cho tiếng còi cảnh báo
+    let audioCtx = null;
+    function playAlarmSound() {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime); // Tần số nốt A5
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.15);
+      } catch (e) { console.error(e); }
+    }
 
     async function addNewESP32() {
       try {
@@ -367,17 +261,20 @@
           device: device,
           autoReconnect: true,
           reconnectDelay: 2000,
-          timerId: null
+          timerId: null,
+          chart: null,
+          rawLogs: [],
+          filterMode: 'ALL'
         };
         connectedDevices.set(device.id, deviceData);
 
         createDeviceCard(device);
+        initChart(device.id);
+
         device.addEventListener('gattserverdisconnected', (event) => onDisconnected(event.target));
         await connectDevice(device);
 
-      } catch (err) {
-        console.error("Lỗi chọn thiết bị:", err);
-      }
+      } catch (err) { console.error("Lỗi chọn thiết bị:", err); }
     }
 
     async function connectDevice(device) {
@@ -386,7 +283,7 @@
 
       try {
         updateDeviceStatus(device.id, "reconnecting", "ĐANG KẾT NỐI");
-        appendDeviceLog(device.id, "[SYSTEM] Đang kết nối GATT Server...");
+        appendDeviceLog(device.id, "[SYSTEM] Kết nối GATT Server...", "SYSTEM");
 
         const server = await device.gatt.connect();
         const service = await server.getPrimaryService(SERVICE_UUID);
@@ -402,84 +299,53 @@
 
         devData.reconnectDelay = 2000;
         updateDeviceStatus(device.id, "connected", "ĐÃ KẾT NỐI");
-        appendDeviceLog(device.id, "[SYSTEM] Kết nối BLE thành công!");
+        appendDeviceLog(device.id, "[SYSTEM] BLE Kết nối thành công!", "SYSTEM");
 
-        // Yêu cầu lấy Firmware Version ngay sau khi thiết lập kết nối
         setTimeout(async () => {
           try {
             const encoder = new TextEncoder();
             await rxCharacteristic.writeValue(encoder.encode("GET_VER"));
-            appendDeviceLog(device.id, "[SYSTEM] Yêu cầu Firmware Version...");
-          } catch (err) {
-            console.error("Lỗi khi gửi GET_VER:", err);
-          }
+          } catch (err) { console.error("Lỗi GET_VER:", err); }
         }, 200);
 
       } catch (err) {
-        appendDeviceLog(device.id, "[ERROR] " + err.message);
-        if (devData.autoReconnect) {
-          scheduleReconnect(device);
-        } else {
-          updateDeviceStatus(device.id, "disconnected", "ĐÃ NGẮT");
-        }
+        appendDeviceLog(device.id, "[ERROR] " + err.message, "ERROR");
+        if (devData.autoReconnect) scheduleReconnect(device);
+        else updateDeviceStatus(device.id, "disconnected", "ĐÃ NGẮT");
       }
     }
 
     function onDisconnected(device) {
       const devData = connectedDevices.get(device.id);
       if (!devData) return;
-
-      appendDeviceLog(device.id, "[WARN] Mất tín hiệu BLE!");
-      
-      if (devData.autoReconnect) {
-        scheduleReconnect(device);
-      } else {
-        updateDeviceStatus(device.id, "disconnected", "ĐÃ NGẮT");
-      }
+      appendDeviceLog(device.id, "[WARN] Mất tín hiệu BLE!", "WARN");
+      if (devData.autoReconnect) scheduleReconnect(device);
+      else updateDeviceStatus(device.id, "disconnected", "ĐÃ NGẮT");
     }
 
     function scheduleReconnect(device) {
       const devData = connectedDevices.get(device.id);
       if (!devData || !devData.autoReconnect) return;
-
       if (devData.timerId) clearTimeout(devData.timerId);
 
       const delaySec = Math.round(devData.reconnectDelay / 1000);
       updateDeviceStatus(device.id, "reconnecting", `THỬ LẠI (${delaySec}S)`);
-      appendDeviceLog(device.id, `[RETRY] Kết nối lại sau ${delaySec}s...`);
-
       devData.timerId = setTimeout(() => {
         devData.reconnectDelay = Math.min(devData.reconnectDelay * 1.5, 30000);
         connectDevice(device);
       }, devData.reconnectDelay);
     }
 
-    function manualReconnect(deviceId) {
-      const devData = connectedDevices.get(deviceId);
-      if (devData) {
-        if (devData.timerId) clearTimeout(devData.timerId);
-        devData.autoReconnect = true;
-        devData.reconnectDelay = 2000;
-        connectDevice(devData.device);
-      }
-    }
-
-    function disconnectDevice(deviceId) {
-      const devData = connectedDevices.get(deviceId);
-      if (devData) {
-        devData.autoReconnect = false;
-        if (devData.timerId) clearTimeout(devData.timerId);
-        if (devData.device.gatt.connected) {
-          devData.device.gatt.disconnect();
-        }
-        connectedDevices.delete(deviceId);
-      }
-      const cardEl = document.getElementById(`card-${deviceId}`);
-      if (cardEl) cardEl.remove();
-    }
-
     function parseAndUpdateUI(deviceId, rawLog) {
-      appendDeviceLog(deviceId, rawLog);
+      const devData = connectedDevices.get(deviceId);
+      
+      // Xác định loại Log
+      let type = "DATA";
+      if (rawLog.includes("[ERROR]")) type = "ERROR";
+      else if (rawLog.includes("[WARN]")) type = "WARN";
+      else if (rawLog.includes("[SYSTEM]")) type = "SYSTEM";
+
+      appendDeviceLog(deviceId, rawLog, type);
 
       const verMatch  = rawLog.match(/VER:\s*([^\s|]+)/);
       const tempMatch = rawLog.match(/TEMP:\s*([\d\.]+)/);
@@ -487,9 +353,105 @@
       const outMatch  = rawLog.match(/OUT:\s*(\d+)/);
 
       if (verMatch)  document.getElementById(`ver-${deviceId}`).innerText  = "v" + verMatch[1].trim();
-      if (tempMatch) document.getElementById(`temp-${deviceId}`).innerText = tempMatch[1] + "°C";
       if (inMatch)   document.getElementById(`in-${deviceId}`).innerText   = inMatch[1];
       if (outMatch)  document.getElementById(`out-${deviceId}`).innerText  = outMatch[1];
+
+      if (tempMatch) {
+        const tempVal = parseFloat(tempMatch[1]);
+        document.getElementById(`temp-${deviceId}`).innerText = tempVal + "°C";
+
+        // Cập nhật biểu đồ thời gian thực
+        updateChartData(devData.chart, tempVal);
+
+        // Mục 4: Kiểm tra Cảnh báo Nhiệt độ Quá ngưỡng
+        const cardEl = document.getElementById(`card-${deviceId}`);
+        if (tempVal >= TEMP_ALARM_THRESHOLD) {
+          cardEl.classList.add('card-alarm');
+          playAlarmSound(); // Phát âm thanh bíp
+        } else {
+          cardEl.classList.remove('card-alarm');
+        }
+      }
+    }
+
+    // Khoản 2: Khởi tạo Biểu đồ Real-time Chart.js
+    function initChart(deviceId) {
+      const ctx = document.getElementById(`chart-${deviceId}`).getContext('2d');
+      const chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [{
+            label: 'Nhiệt độ (°C)',
+            data: [],
+            borderColor: '#ff7043',
+            backgroundColor: 'rgba(255, 112, 67, 0.15)',
+            borderWidth: 2,
+            fill: true,
+            tension: 0.3,
+            pointRadius: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { display: false },
+            y: {
+              grid: { color: 'rgba(255, 255, 255, 0.05)' },
+              ticks: { color: '#9ca3af', font: { size: 10 } }
+            }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+      connectedDevices.get(deviceId).chart = chart;
+    }
+
+    function updateChartData(chart, newValue) {
+      if (!chart) return;
+      const now = new Date().toLocaleTimeString();
+      chart.data.labels.push(now);
+      chart.data.datasets[0].data.push(newValue);
+
+      // Giữ tối đa 20 điểm dữ liệu trên đồ thị
+      if (chart.data.labels.length > 20) {
+        chart.data.labels.shift();
+        chart.data.datasets[0].data.shift();
+      }
+      chart.update('none');
+    }
+
+    // Khoản 4: Bộ Lọc Terminal Log
+    function setLogFilter(deviceId, mode, btn) {
+      const devData = connectedDevices.get(deviceId);
+      if (!devData) return;
+      
+      devData.filterMode = mode;
+      
+      // Cập nhật giao diện nút
+      const btnGroup = btn.parentElement;
+      btnGroup.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      // Render lại log
+      renderFilteredLogs(deviceId);
+    }
+
+    function renderFilteredLogs(deviceId) {
+      const devData = connectedDevices.get(deviceId);
+      const logDiv = document.getElementById(`log-${deviceId}`);
+      if (!devData || !logDiv) return;
+
+      const filtered = devData.rawLogs.filter(item => {
+        if (devData.filterMode === 'ALL') return true;
+        if (devData.filterMode === 'DATA') return item.type === 'DATA';
+        if (devData.filterMode === 'WARN') return item.type === 'WARN' || item.type === 'ERROR';
+        return true;
+      });
+
+      logDiv.innerHTML = filtered.map(i => i.msg).join('\n');
+      logDiv.scrollTop = logDiv.scrollHeight;
     }
 
     function createDeviceCard(device) {
@@ -508,7 +470,7 @@
               </div>
             </div>
             <div class="card-actions">
-              <button class="btn-action btn-reconnect" onclick="manualReconnect('${device.id}')">LÀM MỚI</button>
+              <button class="btn-action btn-reconnect" onclick="manualReconnect('${device.id}')">KẾT NỐI LẠI</button>
               <button class="btn-action btn-disconnect" onclick="disconnectDevice('${device.id}')">XÓA</button>
             </div>
           </div>
@@ -528,27 +490,66 @@
             </div>
           </div>
 
-          <div class="esp-log" id="log-${device.id}"></div>
+          <!-- Biểu đồ thời gian thực -->
+          <div class="chart-container">
+            <canvas id="chart-${device.id}"></canvas>
+          </div>
+
+          <!-- Khung Log & Nút Lọc -->
+          <div>
+            <div class="log-header">
+              <span class="log-title">Console Terminal</span>
+              <div class="filter-btn-group">
+                <button class="btn-filter active" onclick="setLogFilter('${device.id}', 'ALL', this)">ALL</button>
+                <button class="btn-filter" onclick="setLogFilter('${device.id}', 'DATA', this)">DATA</button>
+                <button class="btn-filter" onclick="setLogFilter('${device.id}', 'WARN', this)">ERR/WARN</button>
+              </div>
+            </div>
+            <div class="esp-log" id="log-${device.id}"></div>
+          </div>
         </div>
       `;
       container.insertAdjacentHTML('beforeend', cardHtml);
+    }
+
+    function manualReconnect(deviceId) {
+      const devData = connectedDevices.get(deviceId);
+      if (devData) {
+        if (devData.timerId) clearTimeout(devData.timerId);
+        devData.autoReconnect = true;
+        devData.reconnectDelay = 2000;
+        connectDevice(devData.device);
+      }
+    }
+
+    function disconnectDevice(deviceId) {
+      const devData = connectedDevices.get(deviceId);
+      if (devData) {
+        devData.autoReconnect = false;
+        if (devData.timerId) clearTimeout(devData.timerId);
+        if (devData.device.gatt.connected) devData.device.gatt.disconnect();
+        connectedDevices.delete(deviceId);
+      }
+      const cardEl = document.getElementById(`card-${deviceId}`);
+      if (cardEl) cardEl.remove();
     }
 
     function updateDeviceStatus(deviceId, state, labelText) {
       const statusContainer = document.getElementById(`status-${deviceId}`);
       const badge = document.getElementById(`badge-${deviceId}`);
       if (!statusContainer || !badge) return;
-      
       statusContainer.className = `status-container status-${state}`;
       badge.innerText = labelText;
     }
 
-    function appendDeviceLog(deviceId, msg) {
-      const logDiv = document.getElementById(`log-${deviceId}`);
-      if (logDiv) {
-        logDiv.innerHTML += msg + "\n";
-        logDiv.scrollTop = logDiv.scrollHeight;
-      }
+    function appendDeviceLog(deviceId, msg, type = "DATA") {
+      const devData = connectedDevices.get(deviceId);
+      if (!devData) return;
+
+      devData.rawLogs.push({ msg, type });
+      if (devData.rawLogs.length > 100) devData.rawLogs.shift(); // Giới hạn 100 dòng
+
+      renderFilteredLogs(deviceId);
     }
   </script>
 </body>
