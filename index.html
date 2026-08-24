@@ -14,10 +14,7 @@
       --border-color: #2c2c2c;
     }
 
-    * {
-      box-sizing: border-box;
-      -webkit-tap-highlight-color: transparent;
-    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -27,7 +24,6 @@
       margin: 0;
     }
 
-    /* --- HEADER --- */
     .header {
       display: flex;
       flex-direction: column;
@@ -62,21 +58,14 @@
       align-items: center;
       justify-content: center;
       gap: 6px;
-      transition: background 0.2s, transform 0.1s;
     }
 
-    .btn-add:active {
-      transform: scale(0.98);
-    }
-
-    /* --- GRID SETUP --- */
     .esp-grid {
       display: grid;
       grid-template-columns: 1fr;
       gap: 16px;
     }
 
-    /* --- CARD ITEM --- */
     .esp-card {
       background: var(--card-bg);
       border-radius: 12px;
@@ -108,9 +97,6 @@
       font-weight: 700;
       color: #00ff66;
       font-family: monospace;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
     }
 
     .status-badge {
@@ -119,8 +105,6 @@
       border-radius: 6px;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
-      white-space: nowrap;
     }
     .status-connected { background: rgba(27, 94, 32, 0.6); color: #81c784; border: 1px solid #2e7d32; }
     .status-reconnecting { background: rgba(245, 127, 23, 0.6); color: #fff59d; border: 1px solid #f9a825; }
@@ -140,9 +124,7 @@
       cursor: pointer;
       font-size: 12px;
       font-weight: 600;
-      transition: opacity 0.2s;
     }
-    .btn-action:active { opacity: 0.8; }
     .btn-reconnect { background: #0288d1; color: white; }
     .btn-disconnect { background: #d32f2f; color: white; }
 
@@ -172,7 +154,6 @@
       margin-top: 2px;
     }
 
-    /* --- LOGS --- */
     .esp-log {
       background: #080808;
       color: #00ff66;
@@ -187,30 +168,16 @@
       border: 1px solid #222;
     }
 
-    /* --- BREAKPOINTS DÀNH CHO LAPTOP & MÁY TÍNH BẢNG --- */
     @media (min-width: 600px) {
       body { padding: 20px; }
-      
-      .header {
-        flex-direction: row;
-        justify-content: space-between;
-      }
+      .header { flex-direction: row; justify-content: space-between; }
       .header-title { text-align: left; font-size: 1.5rem; }
       .btn-add { width: auto; }
-
-      .esp-grid {
-        grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
-      }
-
-      .esp-card-header {
-        flex-direction: row;
-        justify-content: space-between;
-        align-items: center;
-      }
+      .esp-grid { grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); }
+      .esp-card-header { flex-direction: row; justify-content: space-between; align-items: center; }
       .device-info { width: auto; }
       .card-actions { width: auto; }
       .btn-action { flex: initial; }
-      
       .esp-log { height: 180px; font-size: 12px; }
     }
   </style>
@@ -350,13 +317,14 @@
     function parseAndUpdateUI(deviceId, rawLog) {
       appendDeviceLog(deviceId, rawLog);
 
-      const verMatch = rawLog.match(/VER:\s*([^|]+)/);
-      const inMatch  = rawLog.match(/IN:\s*(\d+)/);
-      const outMatch = rawLog.match(/OUT:\s*(\d+)/);
+      // Regex bóc tách Nhiệt độ, Xung IN, Xung OUT
+      const tempMatch = rawLog.match(/TEMP:\s*([\d\.]+)/);
+      const inMatch   = rawLog.match(/IN:\s*(\d+)/);
+      const outMatch  = rawLog.match(/OUT:\s*(\d+)/);
 
-      if (verMatch) document.getElementById(`ver-${deviceId}`).innerText = verMatch[1].trim();
-      if (inMatch)  document.getElementById(`in-${deviceId}`).innerText  = inMatch[1];
-      if (outMatch) document.getElementById(`out-${deviceId}`).innerText = outMatch[1];
+      if (tempMatch) document.getElementById(`temp-${deviceId}`).innerText = tempMatch[1] + "°C";
+      if (inMatch)   document.getElementById(`in-${deviceId}`).innerText   = inMatch[1];
+      if (outMatch)  document.getElementById(`out-${deviceId}`).innerText  = outMatch[1];
     }
 
     function createDeviceCard(device) {
@@ -376,8 +344,8 @@
 
           <div class="metrics">
             <div class="metric-box">
-              <div class="metric-label">Version</div>
-              <div class="metric-val" id="ver-${device.id}" style="color: #ffca28;">--</div>
+              <div class="metric-label">Nhiệt độ</div>
+              <div class="metric-val" id="temp-${device.id}" style="color: #ff5722;">--°C</div>
             </div>
             <div class="metric-box">
               <div class="metric-label">Xung IN</div>
