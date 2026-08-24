@@ -3,86 +3,140 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Multi-ESP32 BLE Dashboard</title>
+  <title>ESP32 BLE Control Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  
   <style>
     :root {
-      --bg-color: #121212;
-      --card-bg: #1e1e1e;
-      --accent-color: #0288d1;
-      --text-main: #e0e0e0;
-      --text-muted: #9e9e9e;
-      --border-color: #2c2c2c;
+      --bg-dark: #0b0f17;
+      --card-bg: rgba(22, 31, 46, 0.7);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --accent-cyan: #00f2ff;
+      --accent-blue: #3b82f6;
+      --status-connected: #10b981;
+      --status-reconnect: #f59e0b;
+      --status-disconnected: #ef4444;
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --font-mono: 'JetBrains Mono', monospace;
+      --font-sans: 'Inter', sans-serif;
     }
 
-    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    * { 
+      box-sizing: border-box; 
+      -webkit-tap-highlight-color: transparent;
+      margin: 0;
+      padding: 0;
+    }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      background: var(--bg-color);
+      font-family: var(--font-sans);
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(0, 242, 255, 0.05) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(59, 130, 246, 0.05) 0px, transparent 50%);
+      background-attachment: fixed;
       color: var(--text-main);
-      padding: 12px;
-      margin: 0;
+      padding: 16px;
+      min-height: 100vh;
     }
 
+    /* Navbar Header */
     .header {
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 16px;
       background: var(--card-bg);
-      padding: 16px;
-      border-radius: 12px;
-      margin-bottom: 16px;
-      border: 1px solid var(--border-color);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      padding: 18px 20px;
+      border-radius: 16px;
+      margin-bottom: 20px;
+      border: 1px solid var(--card-border);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    }
+
+    .header-title-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 12px;
+      height: 12px;
+      background: var(--accent-cyan);
+      border-radius: 50%;
+      box-shadow: 0 0 12px var(--accent-cyan);
     }
 
     .header-title {
-      margin: 0;
       font-size: 1.25rem;
       font-weight: 700;
-      color: #ffffff;
-      text-align: center;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #fff 0%, #a5f3fc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
     }
 
     .btn-add {
-      background: var(--accent-color);
-      color: white;
+      background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+      color: #ffffff;
       font-weight: 600;
-      padding: 12px 18px;
-      border: none;
-      border-radius: 8px;
+      padding: 12px 20px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 10px;
       cursor: pointer;
       font-size: 14px;
       width: 100%;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 6px;
+      gap: 8px;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 14px rgba(2, 132, 199, 0.3);
     }
 
+    .btn-add:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(2, 132, 199, 0.5);
+      background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+    }
+
+    /* Grid Layout */
     .esp-grid {
       display: grid;
       grid-template-columns: 1fr;
-      gap: 16px;
+      gap: 20px;
     }
 
+    /* Device Card */
     .esp-card {
       background: var(--card-bg);
-      border-radius: 12px;
-      padding: 16px;
-      border: 1px solid var(--border-color);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-radius: 16px;
+      padding: 20px;
+      border: 1px solid var(--card-border);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 16px;
+      transition: border-color 0.3s ease;
+    }
+
+    .esp-card:hover {
+      border-color: rgba(0, 242, 255, 0.2);
     }
 
     .esp-card-header {
       display: flex;
       flex-direction: column;
-      gap: 10px;
-      border-bottom: 1px solid var(--border-color);
-      padding-bottom: 12px;
+      gap: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      padding-bottom: 14px;
     }
 
     .device-info {
@@ -95,37 +149,72 @@
     .device-title {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
     }
 
     .esp-name {
       font-size: 16px;
       font-weight: 700;
-      color: #00ff66;
-      font-family: monospace;
+      color: #ffffff;
+      font-family: var(--font-mono);
+      letter-spacing: -0.5px;
     }
 
     .esp-version {
-      font-size: 11px;
-      color: #ffca28;
-      background: rgba(255, 202, 40, 0.1);
-      padding: 2px 6px;
-      border-radius: 4px;
-      border: 1px solid rgba(255, 202, 40, 0.3);
-      font-family: monospace;
-    }
-
-    .status-badge {
       font-size: 10px;
-      padding: 4px 8px;
+      color: var(--accent-cyan);
+      background: rgba(0, 242, 255, 0.08);
+      padding: 3px 8px;
       border-radius: 6px;
+      border: 1px solid rgba(0, 242, 255, 0.25);
+      font-family: var(--font-mono);
       font-weight: 700;
-      text-transform: uppercase;
     }
-    .status-connected { background: rgba(27, 94, 32, 0.6); color: #81c784; border: 1px solid #2e7d32; }
-    .status-reconnecting { background: rgba(245, 127, 23, 0.6); color: #fff59d; border: 1px solid #f9a825; }
-    .status-disconnected { background: rgba(183, 28, 28, 0.6); color: #e57373; border: 1px solid #c62828; }
 
+    /* Pulse Status Indicator */
+    .status-container {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      font-family: var(--font-mono);
+    }
+
+    .status-led {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .status-connected .status-led {
+      background-color: var(--status-connected);
+      box-shadow: 0 0 10px var(--status-connected);
+      animation: pulse 2s infinite;
+    }
+    .status-connected { color: var(--status-connected); }
+
+    .status-reconnecting .status-led {
+      background-color: var(--status-reconnect);
+      box-shadow: 0 0 10px var(--status-reconnect);
+      animation: pulse 1s infinite;
+    }
+    .status-reconnecting { color: var(--status-reconnect); }
+
+    .status-disconnected .status-led {
+      background-color: var(--status-disconnected);
+      box-shadow: 0 0 8px var(--status-disconnected);
+    }
+    .status-disconnected { color: var(--status-disconnected); }
+
+    @keyframes pulse {
+      0% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.95); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    /* Actions */
     .card-actions {
       display: flex;
       gap: 8px;
@@ -135,74 +224,121 @@
     .btn-action {
       flex: 1;
       border: none;
-      padding: 8px 10px;
-      border-radius: 6px;
+      padding: 9px 12px;
+      border-radius: 8px;
       cursor: pointer;
       font-size: 12px;
       font-weight: 600;
+      transition: all 0.2s ease;
+      font-family: var(--font-sans);
     }
-    .btn-reconnect { background: #0288d1; color: white; }
-    .btn-disconnect { background: #d32f2f; color: white; }
 
+    .btn-reconnect {
+      background: rgba(59, 130, 246, 0.15);
+      color: #60a5fa;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+    .btn-reconnect:hover {
+      background: rgba(59, 130, 246, 0.3);
+      color: #fff;
+    }
+
+    .btn-disconnect {
+      background: rgba(239, 68, 68, 0.12);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    .btn-disconnect:hover {
+      background: rgba(239, 68, 68, 0.25);
+      color: #fff;
+    }
+
+    /* Metrics Grid */
     .metrics {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-      background: #141414;
-      padding: 10px;
-      border-radius: 8px;
-      border: 1px solid #252525;
+      gap: 10px;
     }
+
     .metric-box {
+      background: rgba(11, 15, 23, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      padding: 12px 8px;
+      border-radius: 10px;
       text-align: center;
+      transition: transform 0.2s ease;
     }
+
+    .metric-box:hover {
+      transform: translateY(-2px);
+      background: rgba(11, 15, 23, 0.8);
+    }
+
     .metric-label {
       font-size: 10px;
       color: var(--text-muted);
       text-transform: uppercase;
-    }
-    .metric-val {
-      font-size: 15px;
-      font-weight: bold;
-      color: #fff;
-      font-family: monospace;
-      margin-top: 2px;
+      letter-spacing: 0.5px;
+      font-weight: 600;
+      margin-bottom: 4px;
     }
 
+    .metric-val {
+      font-size: 16px;
+      font-weight: 700;
+      color: #ffffff;
+      font-family: var(--font-mono);
+    }
+
+    /* Terminal Console Log */
     .esp-log {
-      background: #080808;
-      color: #00ff66;
-      font-family: 'Courier New', Courier, monospace;
-      padding: 10px;
+      background: #05070a;
+      color: #10b981;
+      font-family: var(--font-mono);
+      padding: 12px;
       height: 140px;
       overflow-y: auto;
       font-size: 11px;
-      border-radius: 8px;
+      line-height: 1.5;
+      border-radius: 10px;
       white-space: pre-wrap;
       word-break: break-all;
-      border: 1px solid #222;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      box-shadow: inset 0 2px 8px rgba(0,0,0,0.8);
     }
 
-    @media (min-width: 600px) {
-      body { padding: 20px; }
-      .header { flex-direction: row; justify-content: space-between; }
-      .header-title { text-align: left; font-size: 1.5rem; }
+    .esp-log::-webkit-scrollbar {
+      width: 4px;
+    }
+    .esp-log::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+    }
+
+    /* Desktop View */
+    @media (min-width: 640px) {
+      body { padding: 24px; }
+      .header { flex-direction: row; justify-content: space-between; align-items: center; }
       .btn-add { width: auto; }
       .esp-grid { grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); }
       .esp-card-header { flex-direction: row; justify-content: space-between; align-items: center; }
-      .device-info { width: auto; gap: 15px; }
+      .device-info { width: auto; gap: 16px; }
       .card-actions { width: auto; }
-      .btn-action { flex: initial; }
-      .esp-log { height: 180px; font-size: 12px; }
+      .btn-action { flex: initial; padding: 7px 14px; }
+      .esp-log { height: 160px; }
     }
   </style>
 </head>
 <body>
 
   <div class="header">
-    <h2 class="header-title">ESP32 BLE Dashboard</h2>
+    <div class="header-title-group">
+      <div class="brand-icon"></div>
+      <h2 class="header-title">ESP32 BLE Control Center</h2>
+    </div>
     <button class="btn-add" onclick="addNewESP32()">
-      <span>+</span> DÒ & THÊM ESP32
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      THÊM THIẾT BỊ BLE
     </button>
   </div>
 
@@ -249,17 +385,15 @@
       if (!devData) return;
 
       try {
-        updateDeviceStatus(device.id, "reconnecting", "ĐANG KẾT NỐI...");
-        appendDeviceLog(device.id, "[SYSTEM] Thử kết nối GATT...");
+        updateDeviceStatus(device.id, "reconnecting", "ĐANG KẾT NỐI");
+        appendDeviceLog(device.id, "[SYSTEM] Đang kết nối GATT Server...");
 
         const server = await device.gatt.connect();
         const service = await server.getPrimaryService(SERVICE_UUID);
         
-        // Lấy RX và TX Characteristic
         const txCharacteristic = await service.getCharacteristic(CHARACTERISTIC_UUID_TX);
         const rxCharacteristic = await service.getCharacteristic(CHARACTERISTIC_UUID_RX);
 
-        // Bật Notify lắng nghe dữ liệu từ ESP32
         await txCharacteristic.startNotifications();
         txCharacteristic.addEventListener('characteristicvaluechanged', (e) => {
           const val = new TextDecoder().decode(e.target.value);
@@ -270,19 +404,19 @@
         updateDeviceStatus(device.id, "connected", "ĐÃ KẾT NỐI");
         appendDeviceLog(device.id, "[SYSTEM] Kết nối BLE thành công!");
 
-        // Gửi yêu cầu lấy Version ngay sau khi kết nối thành công
+        // Yêu cầu lấy Firmware Version ngay sau khi thiết lập kết nối
         setTimeout(async () => {
           try {
             const encoder = new TextEncoder();
             await rxCharacteristic.writeValue(encoder.encode("GET_VER"));
-            appendDeviceLog(device.id, "[SYSTEM] Đã gửi yêu cầu lấy Version...");
+            appendDeviceLog(device.id, "[SYSTEM] Yêu cầu Firmware Version...");
           } catch (err) {
             console.error("Lỗi khi gửi GET_VER:", err);
           }
         }, 200);
 
       } catch (err) {
-        appendDeviceLog(device.id, "[ERROR] Lỗi: " + err.message);
+        appendDeviceLog(device.id, "[ERROR] " + err.message);
         if (devData.autoReconnect) {
           scheduleReconnect(device);
         } else {
@@ -295,7 +429,7 @@
       const devData = connectedDevices.get(device.id);
       if (!devData) return;
 
-      appendDeviceLog(device.id, "[WARNING] Mất tín hiệu BLE!");
+      appendDeviceLog(device.id, "[WARN] Mất tín hiệu BLE!");
       
       if (devData.autoReconnect) {
         scheduleReconnect(device);
@@ -311,8 +445,8 @@
       if (devData.timerId) clearTimeout(devData.timerId);
 
       const delaySec = Math.round(devData.reconnectDelay / 1000);
-      updateDeviceStatus(device.id, "reconnecting", `THỬ LẠI SAU ${delaySec}S`);
-      appendDeviceLog(device.id, `[RETRY] Thử kết nối lại sau ${delaySec}s...`);
+      updateDeviceStatus(device.id, "reconnecting", `THỬ LẠI (${delaySec}S)`);
+      appendDeviceLog(device.id, `[RETRY] Kết nối lại sau ${delaySec}s...`);
 
       devData.timerId = setTimeout(() => {
         devData.reconnectDelay = Math.min(devData.reconnectDelay * 1.5, 30000);
@@ -347,9 +481,7 @@
     function parseAndUpdateUI(deviceId, rawLog) {
       appendDeviceLog(deviceId, rawLog);
 
-      // Parse Version (từ chuỗi WELCOME hoặc phản hồi GET_VER)
       const verMatch  = rawLog.match(/VER:\s*([^\s|]+)/);
-      // Parse Nhiệt độ, Xung IN, Xung OUT từ log định kỳ
       const tempMatch = rawLog.match(/TEMP:\s*([\d\.]+)/);
       const inMatch   = rawLog.match(/IN:\s*(\d+)/);
       const outMatch  = rawLog.match(/OUT:\s*(\d+)/);
@@ -370,10 +502,13 @@
                 <span class="esp-name">${device.name || 'ESP32'}</span>
                 <span class="esp-version" id="ver-${device.id}">v--</span>
               </div>
-              <span id="badge-${device.id}" class="status-badge status-disconnected">ĐÃ NGẮT</span>
+              <div id="status-${device.id}" class="status-container status-disconnected">
+                <span class="status-led"></span>
+                <span id="badge-${device.id}">ĐÃ NGẮT</span>
+              </div>
             </div>
             <div class="card-actions">
-              <button class="btn-action btn-reconnect" onclick="manualReconnect('${device.id}')">KẾT NỐI LẠI</button>
+              <button class="btn-action btn-reconnect" onclick="manualReconnect('${device.id}')">LÀM MỚI</button>
               <button class="btn-action btn-disconnect" onclick="disconnectDevice('${device.id}')">XÓA</button>
             </div>
           </div>
@@ -381,15 +516,15 @@
           <div class="metrics">
             <div class="metric-box">
               <div class="metric-label">Nhiệt độ</div>
-              <div class="metric-val" id="temp-${device.id}" style="color: #ff5722;">--°C</div>
+              <div class="metric-val" id="temp-${device.id}" style="color: #ff7043;">--°C</div>
             </div>
             <div class="metric-box">
               <div class="metric-label">Xung IN</div>
-              <div class="metric-val" id="in-${device.id}">0</div>
+              <div class="metric-val" id="in-${device.id}" style="color: #38bdf8;">0</div>
             </div>
             <div class="metric-box">
               <div class="metric-label">Xung OUT</div>
-              <div class="metric-val" id="out-${device.id}">0</div>
+              <div class="metric-val" id="out-${device.id}" style="color: #34d399;">0</div>
             </div>
           </div>
 
@@ -400,9 +535,11 @@
     }
 
     function updateDeviceStatus(deviceId, state, labelText) {
+      const statusContainer = document.getElementById(`status-${deviceId}`);
       const badge = document.getElementById(`badge-${deviceId}`);
-      if (!badge) return;
-      badge.className = `status-badge status-${state}`;
+      if (!statusContainer || !badge) return;
+      
+      statusContainer.className = `status-container status-${state}`;
       badge.innerText = labelText;
     }
 
