@@ -209,7 +209,8 @@
   <div id="espContainer" class="esp-grid"></div>
 
   <script>
-    const SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+    const SERVICE_UUID           = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+    const CHARACTERISTIC_UUID_RX = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
     const CHARACTERISTIC_UUID_TX = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
 
     const connectedDevices = new Map();
@@ -253,11 +254,14 @@
 
         const server = await device.gatt.connect();
         const service = await server.getPrimaryService(SERVICE_UUID);
-        const characteristic = await service.getCharacteristic(CHARACTERISTIC_UUID_TX);
-
-        await characteristic.startNotifications();
         
-        characteristic.addEventListener('characteristicvaluechanged', (e) => {
+        // Lấy RX và TX Characteristic
+        const txCharacteristic = await service.getCharacteristic(CHARACTERISTIC_UUID_TX);
+        const rxCharacteristic = await service.getCharacteristic(CHARACTERISTIC_UUID_RX);
+
+        // Bật Notify lắng nghe dữ liệu từ ESP32
+        await txCharacteristic.startNotifications();
+        txCharacteristic.addEventListener('characteristicvaluechanged', (e) => {
           const val = new TextDecoder().decode(e.target.value);
           parseAndUpdateUI(device.id, val.trim());
         });
@@ -265,6 +269,17 @@
         devData.reconnectDelay = 2000;
         updateDeviceStatus(device.id, "connected", "ĐÃ KẾT NỐI");
         appendDeviceLog(device.id, "[SYSTEM] Kết nối BLE thành công!");
+
+        // Gửi yêu cầu lấy Version ngay sau khi kết nối thành công
+        setTimeout(async () => {
+          try {
+            const encoder = new TextEncoder();
+            await rxCharacteristic.writeValue(encoder.encode("GET_VER"));
+            appendDeviceLog(device.id, "[SYSTEM] Đã gửi yêu cầu lấy Version...");
+          } catch (err) {
+            console.error("Lỗi khi gửi GET_VER:", err);
+          }
+        }, 200);
 
       } catch (err) {
         appendDeviceLog(device.id, "[ERROR] Lỗi: " + err.message);
@@ -297,7 +312,7 @@
 
       const delaySec = Math.round(devData.reconnectDelay / 1000);
       updateDeviceStatus(device.id, "reconnecting", `THỬ LẠI SAU ${delaySec}S`);
-      appendDeviceLog(device.id, `[RETRY] Kết nối lại sau ${delaySec}s...`);
+      appendDeviceLog(device.id, `[RETRY] Thử kết nối lại sau ${delaySec}s...`);
 
       devData.timerId = setTimeout(() => {
         devData.reconnectDelay = Math.min(devData.reconnectDelay * 1.5, 30000);
@@ -332,9 +347,9 @@
     function parseAndUpdateUI(deviceId, rawLog) {
       appendDeviceLog(deviceId, rawLog);
 
-      // Nhận Version khi mới kết nối
+      // Parse Version (từ chuỗi WELCOME hoặc phản hồi GET_VER)
       const verMatch  = rawLog.match(/VER:\s*([^\s|]+)/);
-      // Nhận Nhiệt độ, Xung IN, Xung OUT định kỳ
+      // Parse Nhiệt độ, Xung IN, Xung OUT từ log định kỳ
       const tempMatch = rawLog.match(/TEMP:\s*([\d\.]+)/);
       const inMatch   = rawLog.match(/IN:\s*(\d+)/);
       const outMatch  = rawLog.match(/OUT:\s*(\d+)/);
