@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scala=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>ESP Monitor Center - Advanced</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -247,6 +247,15 @@
         osc.start();
         osc.stop(audioCtx.currentTime + 0.15);
       } catch (e) { console.error(e); }
+    }
+
+    // Hàm bổ trợ lấy chuỗi thời gian HH:mm:ss
+    function getFormattedTime() {
+      const now = new Date();
+      const hrs = String(now.getHours()).padStart(2, '0');
+      const mins = String(now.getMinutes()).padStart(2, '0');
+      const secs = String(now.getSeconds()).padStart(2, '0');
+      return `[${hrs}:${mins}:${secs}]`;
     }
 
     async function addNewESP() {
@@ -552,7 +561,10 @@
       const devData = connectedDevices.get(deviceId);
       if (!devData) return;
 
-      devData.rawLogs.push({ msg, type });
+      // Ghép thời gian [HH:mm:ss] vào trước nội dung log
+      const timedMsg = `${getFormattedTime()} ${msg}`;
+
+      devData.rawLogs.push({ msg: timedMsg, type });
       if (devData.rawLogs.length > 100) devData.rawLogs.shift(); // Giới hạn 100 dòng
 
       renderFilteredLogs(deviceId);
