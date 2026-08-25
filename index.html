@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scala=no">
-  <title>ESP32 Monitor Center - Advanced</title>
+  <title>ESP Monitor Center - Advanced</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
@@ -210,9 +210,9 @@
   <div class="header">
     <div class="header-title-group">
       <div class="brand-icon"></div>
-      <h2 class="header-title">ESP32 Monitor Center</h2>
+      <h2 class="header-title">ESP Monitor Center</h2>
     </div>
-    <button class="btn-add" onclick="addNewESP32()">
+    <button class="btn-add" onclick="addNewESP()">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
       THÊM THIẾT BỊ
     </button>
@@ -249,7 +249,7 @@
       } catch (e) { console.error(e); }
     }
 
-    async function addNewESP32() {
+    async function addNewESP() {
       try {
         const device = await navigator.bluetooth.requestDevice({
           filters: [{ namePrefix: 'ESP_' }],
@@ -467,7 +467,7 @@
           <div class="esp-card-header">
             <div class="device-info">
               <div class="device-title">
-                <span class="esp-name">${device.name || 'ESP32'}</span>
+                <span class="esp-name">${device.name || 'ESP'}</span>
                 <span class="esp-version" id="ver-${device.id}">v--</span>
               </div>
               <div id="status-${device.id}" class="status-container status-disconnected">
