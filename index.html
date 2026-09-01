@@ -158,14 +158,14 @@
     .btn-disconnect { background: rgba(239, 68, 68, 0.12); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
     .btn-disconnect:hover { background: rgba(239, 68, 68, 0.25); color: #fff; }
 
-    /* Metrics Grid */
-    .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    /* Metrics Grid - Chuyển thành 4 cột cho 4 thông số */
+    .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
     .metric-box {
       background: rgba(11, 15, 23, 0.6); border: 1px solid rgba(255, 255, 255, 0.04);
-      padding: 12px 8px; border-radius: 10px; text-align: center;
+      padding: 10px 6px; border-radius: 10px; text-align: center;
     }
-    .metric-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-bottom: 4px; }
-    .metric-val { font-size: 16px; font-weight: 700; color: #ffffff; font-family: var(--font-mono); }
+    .metric-label { font-size: 9px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-bottom: 4px; }
+    .metric-val { font-size: 14px; font-weight: 700; color: #ffffff; font-family: var(--font-mono); }
 
     /* Khung Biểu đồ Chart.js */
     .chart-container {
@@ -202,6 +202,7 @@
       .device-info { width: auto; gap: 16px; }
       .card-actions { width: auto; }
       .btn-action { flex: initial; padding: 7px 14px; }
+      .metric-val { font-size: 16px; }
     }
   </style>
 </head>
@@ -226,8 +227,8 @@
     const CHARACTERISTIC_UUID_TX = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
 
     const TEMP_ALARM_THRESHOLD = 60.0; // Ngưỡng nhiệt độ cảnh báo: 60°C
-    const Y_MIN = 45;                  // Cố định giới hạn dưới trục Y: 35°C
-    const Y_MAX = 70;                  // Cố định giới hạn trên trục Y: 70°C
+    const Y_TEMP_MIN = 35;              // Giới hạn dưới trục nhiệt độ: 35°C
+    const Y_TEMP_MAX = 70;              // Giới hạn trên trục nhiệt độ: 70°C
 
     const connectedDevices = new Map();
 
@@ -362,6 +363,7 @@
 
       const verMatch  = rawLog.match(/VER:\s*([^\s|]+)/);
       const tempMatch = rawLog.match(/TEMP:\s*([\d\.]+)/);
+      const voltMatch = rawLog.match(/VOLT:\s*([\d\.]+)/);
       const inMatch   = rawLog.match(/IN:\s*(\d+)/);
       const outMatch  = rawLog.match(/OUT:\s*(\d+)/);
 
@@ -369,52 +371,86 @@
       if (inMatch)   document.getElementById(`in-${deviceId}`).innerText   = inMatch[1];
       if (outMatch)  document.getElementById(`out-${deviceId}`).innerText  = outMatch[1];
 
-      if (tempMatch) {
-        const tempVal = parseFloat(tempMatch[1]);
-        document.getElementById(`temp-${deviceId}`).innerText = tempVal + "°C";
+      let currentTemp = null;
+      let currentVolt = null;
 
-        // Cập nhật biểu đồ thời gian thực
-        updateChartData(devData.chart, tempVal);
+      if (tempMatch) {
+        currentTemp = parseFloat(tempMatch[1]);
+        document.getElementById(`temp-${deviceId}`).innerText = currentTemp + "°C";
 
         // Kiểm tra Cảnh báo Nhiệt độ Quá ngưỡng 60°C
         const cardEl = document.getElementById(`card-${deviceId}`);
-        if (tempVal >= TEMP_ALARM_THRESHOLD) {
+        if (currentTemp >= TEMP_ALARM_THRESHOLD) {
           cardEl.classList.add('card-alarm');
           playAlarmSound(); // Phát âm thanh bíp
         } else {
           cardEl.classList.remove('card-alarm');
         }
       }
+
+      if (voltMatch) {
+        currentVolt = parseFloat(voltMatch[1]);
+        document.getElementById(`volt-${deviceId}`).innerText = currentVolt + "V";
+      }
+
+      // Cập nhật biểu đồ thời gian thực nếu có dữ liệu Nhiệt độ hoặc Volt
+      if (currentTemp !== null || currentVolt !== null) {
+        updateChartData(devData.chart, currentTemp, currentVolt);
+      }
     }
 
-    // Khởi tạo Biểu đồ Real-time Chart.js với Trục Y cố định 35°C - 70°C
+    // Khởi tạo Biểu đồ Real-time Chart.js với 2 trục Y (Nhiệt độ & Điện áp)
     function initChart(deviceId) {
       const ctx = document.getElementById(`chart-${deviceId}`).getContext('2d');
       const chart = new Chart(ctx, {
         type: 'line',
         data: {
           labels: [],
-          datasets: [{
-            label: 'Nhiệt độ (°C)',
-            data: [],
-            borderColor: '#ff7043',
-            backgroundColor: 'rgba(255, 112, 67, 0.15)',
-            borderWidth: 2,
-            fill: true,
-            tension: 0.3,
-            pointRadius: 2
-          }]
+          datasets: [
+            {
+              label: 'Nhiệt độ (°C)',
+              data: [],
+              borderColor: '#ff7043',
+              backgroundColor: 'rgba(255, 112, 67, 0.15)',
+              borderWidth: 2,
+              fill: true,
+              tension: 0.3,
+              pointRadius: 2,
+              yAxisID: 'yTemp'
+            },
+            {
+              label: 'Điện áp (V)',
+              data: [],
+              borderColor: '#facc15',
+              backgroundColor: 'rgba(250, 204, 21, 0.1)',
+              borderWidth: 1.5,
+              fill: false,
+              tension: 0.3,
+              pointRadius: 2,
+              yAxisID: 'yVolt'
+            }
+          ]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
           scales: {
             x: { display: false },
-            y: {
-              min: Y_MIN, // Giới hạn dưới cố định 35°C
-              max: Y_MAX, // Giới hạn trên cố định 70°C
+            yTemp: {
+              type: 'linear',
+              position: 'left',
+              min: Y_TEMP_MIN,
+              max: Y_TEMP_MAX,
               grid: { color: 'rgba(255, 255, 255, 0.05)' },
-              ticks: { color: '#9ca3af', font: { size: 10 } }
+              ticks: { color: '#ff7043', font: { size: 9 } }
+            },
+            yVolt: {
+              type: 'linear',
+              position: 'right',
+              min: 0,
+              max: 5, // Thang đo Volt từ 0V đến 5V
+              grid: { drawOnChartArea: false },
+              ticks: { color: '#facc15', font: { size: 9 } }
             }
           },
           plugins: { legend: { display: false } }
@@ -423,16 +459,18 @@
       connectedDevices.get(deviceId).chart = chart;
     }
 
-    function updateChartData(chart, newValue) {
+    function updateChartData(chart, newTemp, newVolt) {
       if (!chart) return;
       const now = new Date().toLocaleTimeString();
       chart.data.labels.push(now);
-      chart.data.datasets[0].data.push(newValue);
+      chart.data.datasets[0].data.push(newTemp);
+      chart.data.datasets[1].data.push(newVolt);
 
       // Giữ tối đa 20 điểm dữ liệu trên đồ thị
       if (chart.data.labels.length > 20) {
         chart.data.labels.shift();
         chart.data.datasets[0].data.shift();
+        chart.data.datasets[1].data.shift();
       }
       chart.update('none');
     }
@@ -494,6 +532,10 @@
             <div class="metric-box">
               <div class="metric-label">Nhiệt độ</div>
               <div class="metric-val" id="temp-${device.id}" style="color: #ff7043;">--°C</div>
+            </div>
+            <div class="metric-box">
+              <div class="metric-label">Điện áp</div>
+              <div class="metric-val" id="volt-${device.id}" style="color: #facc15;">--V</div>
             </div>
             <div class="metric-box">
               <div class="metric-label">Xung IN</div>
