@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>ESP Monitor Center - Advanced</title>
+  <title>ESP Monitor Center - Advanced (Auth Level 3)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
@@ -128,6 +128,31 @@
       font-family: var(--font-mono); font-weight: 700;
     }
 
+    /* Auth Box UI */
+    .auth-box {
+      display: flex; gap: 8px; align-items: center;
+      background: rgba(11, 15, 23, 0.5); padding: 8px 12px;
+      border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .auth-input {
+      background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--accent-cyan); font-family: var(--font-mono);
+      font-size: 12px; padding: 6px 10px; border-radius: 6px; width: 100px; text-align: center;
+    }
+    .auth-input:focus { outline: none; border-color: var(--accent-cyan); }
+    .btn-auth {
+      background: rgba(0, 242, 255, 0.15); color: var(--accent-cyan);
+      border: 1px solid rgba(0, 242, 255, 0.3); padding: 6px 12px; border-radius: 6px;
+      font-size: 11px; font-weight: 700; cursor: pointer; transition: all 0.2s;
+    }
+    .btn-auth:hover { background: rgba(0, 242, 255, 0.3); }
+    .auth-badge {
+      font-size: 10px; font-family: var(--font-mono); font-weight: 700;
+      padding: 3px 8px; border-radius: 4px; margin-left: auto;
+    }
+    .auth-badge.unauth { background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .auth-badge.authed { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); }
+
     /* Pulse Status Indicator */
     .status-container {
       display: flex; align-items: center; gap: 6px;
@@ -158,7 +183,7 @@
     .btn-disconnect { background: rgba(239, 68, 68, 0.12); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
     .btn-disconnect:hover { background: rgba(239, 68, 68, 0.25); color: #fff; }
 
-    /* Metrics Grid - Chuyển thành 4 cột cho 4 thông số */
+    /* Metrics Grid */
     .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
     .metric-box {
       background: rgba(11, 15, 23, 0.6); border: 1px solid rgba(255, 255, 255, 0.04);
@@ -226,13 +251,13 @@
     const CHARACTERISTIC_UUID_RX = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
     const CHARACTERISTIC_UUID_TX = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
 
-    const TEMP_ALARM_THRESHOLD = 60.0; // Ngưỡng nhiệt độ cảnh báo: 60°C
-    const Y_TEMP_MIN = 35;              // Giới hạn dưới trục nhiệt độ: 35°C
-    const Y_TEMP_MAX = 70;              // Giới hạn trên trục nhiệt độ: 70°C
+    const TEMP_ALARM_THRESHOLD = 60.0; 
+    const Y_TEMP_MIN = 35;             
+    const Y_TEMP_MAX = 70;             
 
     const connectedDevices = new Map();
 
-    // Audio Context cho tiếng còi cảnh báo
+    // Audio Context còi cảnh báo
     let audioCtx = null;
     function playAlarmSound() {
       try {
@@ -241,7 +266,7 @@
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
         osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(880, audioCtx.currentTime); // Tần số nốt A5
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime);
         gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
         osc.connect(gain);
         gain.connect(audioCtx.destination);
@@ -250,7 +275,6 @@
       } catch (e) { console.error(e); }
     }
 
-    // Hàm bổ trợ lấy chuỗi thời gian HH:mm:ss
     function getFormattedTime() {
       const now = new Date();
       const hrs = String(now.getHours()).padStart(2, '0');
@@ -273,6 +297,8 @@
 
         const deviceData = {
           device: device,
+          rxChar: null,
+          isAuthenticated: false,
           autoReconnect: true,
           reconnectDelay: 2000,
           timerId: null,
@@ -303,7 +329,7 @@
         const service = await server.getPrimaryService(SERVICE_UUID);
         
         const txCharacteristic = await service.getCharacteristic(CHARACTERISTIC_UUID_TX);
-        const rxCharacteristic = await service.getCharacteristic(CHARACTERISTIC_UUID_RX);
+        devData.rxChar = await service.getCharacteristic(CHARACTERISTIC_UUID_RX);
 
         await txCharacteristic.startNotifications();
         txCharacteristic.addEventListener('characteristicvaluechanged', (e) => {
@@ -312,15 +338,13 @@
         });
 
         devData.reconnectDelay = 2000;
-        updateDeviceStatus(device.id, "connected", "ĐÃ KẾT NỐI");
-        appendDeviceLog(device.id, "[SYSTEM] Kết nối thành công!", "SYSTEM");
+        updateDeviceStatus(device.id, "connected", "ĐÃ KẾT NỐI BLE");
+        appendDeviceLog(device.id, "[SYSTEM] Kết nối BLE thành công! Đang xác thực...", "SYSTEM");
 
-        setTimeout(async () => {
-          try {
-            const encoder = new TextEncoder();
-            await rxCharacteristic.writeValue(encoder.encode("GET_VER"));
-          } catch (err) { console.error("Lỗi GET_VER:", err); }
-        }, 200);
+        // --- GỬI MẬT KHẨU BẢO MẬT CÁCH 3 TỰ ĐỘNG KHUÔN MẪU AUTH:797979 ---
+        setTimeout(() => {
+          sendAuthPasscode(device.id);
+        }, 300);
 
       } catch (err) {
         appendDeviceLog(device.id, "[ERROR] " + err.message, "ERROR");
@@ -329,10 +353,29 @@
       }
     }
 
+    // Hàm gửi mật khẩu xác thực tới ESP32
+    async function sendAuthPasscode(deviceId) {
+      const devData = connectedDevices.get(deviceId);
+      if (!devData || !devData.rxChar) return;
+
+      const passInput = document.getElementById(`pass-${deviceId}`);
+      const passVal = passInput ? passInput.value : "797979";
+
+      try {
+        const encoder = new TextEncoder();
+        await devData.rxChar.writeValue(encoder.encode(`AUTH:${passVal}`));
+        appendDeviceLog(deviceId, `[AUTH] Đang gửi mật khẩu xác thực...`, "SYSTEM");
+      } catch (err) {
+        appendDeviceLog(deviceId, `[ERROR] Lỗi gửi AUTH: ${err.message}`, "ERROR");
+      }
+    }
+
     function onDisconnected(device) {
       const devData = connectedDevices.get(device.id);
       if (!devData) return;
-      appendDeviceLog(device.id, "[WARN] Mất tín hiệu!", "WARN");
+      devData.isAuthenticated = false;
+      updateAuthUIStatus(device.id, false);
+      appendDeviceLog(device.id, "[WARN] Mất tín hiệu BLE!", "WARN");
       if (devData.autoReconnect) scheduleReconnect(device);
       else updateDeviceStatus(device.id, "disconnected", "ĐÃ NGẮT");
     }
@@ -353,14 +396,38 @@
     function parseAndUpdateUI(deviceId, rawLog) {
       const devData = connectedDevices.get(deviceId);
       
+      // 1. Phản hồi xác thực mật khẩu
+      if (rawLog.includes("[INFO] Auth success!")) {
+        devData.isAuthenticated = true;
+        updateAuthUIStatus(deviceId, true);
+        appendDeviceLog(deviceId, "[AUTH] Mở khóa thành công!", "SYSTEM");
+        
+        // Yêu cầu thông tin Firmware sau khi đã xác thực
+        setTimeout(async () => {
+          try {
+            const encoder = new TextEncoder();
+            await devData.rxChar.writeValue(encoder.encode("GET_VER"));
+          } catch (e) { console.error(e); }
+        }, 200);
+        return;
+      }
+      
+      if (rawLog.includes("[ERR] Wrong passcode!") || rawLog.includes("[ERR] Access denied!")) {
+        devData.isAuthenticated = false;
+        updateAuthUIStatus(deviceId, false);
+        appendDeviceLog(deviceId, rawLog, "ERROR");
+        return;
+      }
+
       // Xác định loại Log
       let type = "DATA";
-      if (rawLog.includes("[ERROR]")) type = "ERROR";
+      if (rawLog.includes("[ERROR]") || rawLog.includes("[ERR]")) type = "ERROR";
       else if (rawLog.includes("[WARN]")) type = "WARN";
-      else if (rawLog.includes("[SYSTEM]")) type = "SYSTEM";
+      else if (rawLog.includes("[SYSTEM]") || rawLog.includes("[INFO]")) type = "SYSTEM";
 
       appendDeviceLog(deviceId, rawLog, type);
 
+      // 解析 Data
       const verMatch  = rawLog.match(/VER:\s*([^\s|]+)/);
       const tempMatch = rawLog.match(/TEMP:\s*([\d\.]+)/);
       const voltMatch = rawLog.match(/VOLT:\s*([\d\.]+)/);
@@ -378,11 +445,11 @@
         currentTemp = parseFloat(tempMatch[1]);
         document.getElementById(`temp-${deviceId}`).innerText = currentTemp + "°C";
 
-        // Kiểm tra Cảnh báo Nhiệt độ Quá ngưỡng 60°C
+        // Cảnh báo Nhiệt độ Quá ngưỡng 60°C
         const cardEl = document.getElementById(`card-${deviceId}`);
         if (currentTemp >= TEMP_ALARM_THRESHOLD) {
           cardEl.classList.add('card-alarm');
-          playAlarmSound(); // Phát âm thanh bíp
+          playAlarmSound();
         } else {
           cardEl.classList.remove('card-alarm');
         }
@@ -393,13 +460,23 @@
         document.getElementById(`volt-${deviceId}`).innerText = currentVolt + "V";
       }
 
-      // Cập nhật biểu đồ thời gian thực nếu có dữ liệu Nhiệt độ hoặc Volt
       if (currentTemp !== null || currentVolt !== null) {
         updateChartData(devData.chart, currentTemp, currentVolt);
       }
     }
 
-    // Khởi tạo Biểu đồ Real-time Chart.js với 2 trục Y (Nhiệt độ & Điện áp)
+    function updateAuthUIStatus(deviceId, isAuthed) {
+      const badge = document.getElementById(`auth-badge-${deviceId}`);
+      if (!badge) return;
+      if (isAuthed) {
+        badge.className = "auth-badge authed";
+        badge.innerText = "ĐÃ XÁC THỰC";
+      } else {
+        badge.className = "auth-badge unauth";
+        badge.innerText = "CHƯA XÁC THỰC";
+      }
+    }
+
     function initChart(deviceId) {
       const ctx = document.getElementById(`chart-${deviceId}`).getContext('2d');
       const chart = new Chart(ctx, {
@@ -448,7 +525,7 @@
               type: 'linear',
               position: 'right',
               min: 0,
-              max: 5, // Thang đo Volt từ 0V đến 5V
+              max: 5,
               grid: { drawOnChartArea: false },
               ticks: { color: '#facc15', font: { size: 9 } }
             }
@@ -466,7 +543,6 @@
       chart.data.datasets[0].data.push(newTemp);
       chart.data.datasets[1].data.push(newVolt);
 
-      // Giữ tối đa 20 điểm dữ liệu trên đồ thị
       if (chart.data.labels.length > 20) {
         chart.data.labels.shift();
         chart.data.datasets[0].data.shift();
@@ -475,19 +551,13 @@
       chart.update('none');
     }
 
-    // Bộ Lọc Terminal Log
     function setLogFilter(deviceId, mode, btn) {
       const devData = connectedDevices.get(deviceId);
       if (!devData) return;
-      
       devData.filterMode = mode;
-      
-      // Cập nhật giao diện nút
       const btnGroup = btn.parentElement;
       btnGroup.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-
-      // Render lại log
       renderFilteredLogs(deviceId);
     }
 
@@ -522,6 +592,14 @@
                 <span id="badge-${device.id}">ĐÃ NGẮT</span>
               </div>
             </div>
+
+            <!-- Khung Xác thực Mật khẩu Cách 3 -->
+            <div class="auth-box">
+              <input type="password" id="pass-${device.id}" class="auth-input" value="797979" placeholder="PASSCODE" />
+              <button class="btn-auth" onclick="sendAuthPasscode('${device.id}')">XÁC THỰC</button>
+              <span id="auth-badge-${device.id}" class="auth-badge unauth">CHƯA XÁC THỰC</span>
+            </div>
+
             <div class="card-actions">
               <button class="btn-action btn-reconnect" onclick="manualReconnect('${device.id}')">KẾT NỐI LẠI</button>
               <button class="btn-action btn-disconnect" onclick="disconnectDevice('${device.id}')">XÓA</button>
@@ -547,12 +625,10 @@
             </div>
           </div>
 
-          <!-- Biểu đồ thời gian thực -->
           <div class="chart-container">
             <canvas id="chart-${device.id}"></canvas>
           </div>
 
-          <!-- Khung Log & Nút Lọc -->
           <div>
             <div class="log-header">
               <span class="log-title">Console Terminal</span>
@@ -603,11 +679,10 @@
       const devData = connectedDevices.get(deviceId);
       if (!devData) return;
 
-      // Ghép thời gian [HH:mm:ss] vào trước nội dung log
       const timedMsg = `${getFormattedTime()} ${msg}`;
 
       devData.rawLogs.push({ msg: timedMsg, type });
-      if (devData.rawLogs.length > 100) devData.rawLogs.shift(); // Giới hạn 100 dòng
+      if (devData.rawLogs.length > 100) devData.rawLogs.shift();
 
       renderFilteredLogs(deviceId);
     }
