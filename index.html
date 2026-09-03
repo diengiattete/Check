@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>ESP Monitor Center - Advanced (Auth Level 3)</title>
+  <title>ESP Monitor Center - Aut</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
@@ -100,7 +100,7 @@
       transition: all 0.3s ease;
     }
 
-    /* Trạng thái Cảnh báo Nguy hiểm (Alarm Glow) */
+    /* Cảnh báo Nguy hiểm (Alarm Glow) */
     .esp-card.card-alarm {
       border-color: #ef4444 !important;
       box-shadow: 0 0 25px rgba(239, 68, 68, 0.4) !important;
@@ -127,31 +127,6 @@
       border-radius: 6px; border: 1px solid rgba(0, 242, 255, 0.25);
       font-family: var(--font-mono); font-weight: 700;
     }
-
-    /* Auth Box UI */
-    .auth-box {
-      display: flex; gap: 8px; align-items: center;
-      background: rgba(11, 15, 23, 0.5); padding: 8px 12px;
-      border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05);
-    }
-    .auth-input {
-      background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.1);
-      color: var(--accent-cyan); font-family: var(--font-mono);
-      font-size: 12px; padding: 6px 10px; border-radius: 6px; width: 100px; text-align: center;
-    }
-    .auth-input:focus { outline: none; border-color: var(--accent-cyan); }
-    .btn-auth {
-      background: rgba(0, 242, 255, 0.15); color: var(--accent-cyan);
-      border: 1px solid rgba(0, 242, 255, 0.3); padding: 6px 12px; border-radius: 6px;
-      font-size: 11px; font-weight: 700; cursor: pointer; transition: all 0.2s;
-    }
-    .btn-auth:hover { background: rgba(0, 242, 255, 0.3); }
-    .auth-badge {
-      font-size: 10px; font-family: var(--font-mono); font-weight: 700;
-      padding: 3px 8px; border-radius: 4px; margin-left: auto;
-    }
-    .auth-badge.unauth { background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); }
-    .auth-badge.authed { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); }
 
     /* Pulse Status Indicator */
     .status-container {
@@ -251,9 +226,10 @@
     const CHARACTERISTIC_UUID_RX = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
     const CHARACTERISTIC_UUID_TX = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
 
-    const TEMP_ALARM_THRESHOLD = 60.0; 
-    const Y_TEMP_MIN = 35;             
-    const Y_TEMP_MAX = 70;             
+    const HARDCODED_AUTH_PASS    = "797979"; // Mật khẩu cấu hình ngầm
+    const TEMP_ALARM_THRESHOLD   = 60.0; 
+    const Y_TEMP_MIN             = 35;             
+    const Y_TEMP_MAX             = 70;             
 
     const connectedDevices = new Map();
 
@@ -298,7 +274,6 @@
         const deviceData = {
           device: device,
           rxChar: null,
-          isAuthenticated: false,
           autoReconnect: true,
           reconnectDelay: 2000,
           timerId: null,
@@ -339,11 +314,11 @@
 
         devData.reconnectDelay = 2000;
         updateDeviceStatus(device.id, "connected", "ĐÃ KẾT NỐI BLE");
-        appendDeviceLog(device.id, "[SYSTEM] Kết nối BLE thành công! Đang xác thực...", "SYSTEM");
+        appendDeviceLog(device.id, "[SYSTEM] Kết nối thành công! Đang tự động gửi Handshake...", "SYSTEM");
 
-        // --- GỬI MẬT KHẨU BẢO MẬT CÁCH 3 TỰ ĐỘNG KHUÔN MẪU AUTH:797979 ---
+        // Gửi lệnh AUTH tự động dưới nền ngay khi kết nối thành công
         setTimeout(() => {
-          sendAuthPasscode(device.id);
+          autoSendHandshake(device.id);
         }, 300);
 
       } catch (err) {
@@ -353,28 +328,22 @@
       }
     }
 
-    // Hàm gửi mật khẩu xác thực tới ESP32
-    async function sendAuthPasscode(deviceId) {
+    // Tự động xác thực ngầm
+    async function autoSendHandshake(deviceId) {
       const devData = connectedDevices.get(deviceId);
       if (!devData || !devData.rxChar) return;
 
-      const passInput = document.getElementById(`pass-${deviceId}`);
-      const passVal = passInput ? passInput.value : "797979";
-
       try {
         const encoder = new TextEncoder();
-        await devData.rxChar.writeValue(encoder.encode(`AUTH:${passVal}`));
-        appendDeviceLog(deviceId, `[AUTH] Đang gửi mật khẩu xác thực...`, "SYSTEM");
+        await devData.rxChar.writeValue(encoder.encode(`AUTH:${HARDCODED_AUTH_PASS}`));
       } catch (err) {
-        appendDeviceLog(deviceId, `[ERROR] Lỗi gửi AUTH: ${err.message}`, "ERROR");
+        appendDeviceLog(deviceId, `[ERROR] Lỗi handshake: ${err.message}`, "ERROR");
       }
     }
 
     function onDisconnected(device) {
       const devData = connectedDevices.get(device.id);
       if (!devData) return;
-      devData.isAuthenticated = false;
-      updateAuthUIStatus(device.id, false);
       appendDeviceLog(device.id, "[WARN] Mất tín hiệu BLE!", "WARN");
       if (devData.autoReconnect) scheduleReconnect(device);
       else updateDeviceStatus(device.id, "disconnected", "ĐÃ NGẮT");
@@ -395,14 +364,12 @@
 
     function parseAndUpdateUI(deviceId, rawLog) {
       const devData = connectedDevices.get(deviceId);
-      
-      // 1. Phản hồi xác thực mật khẩu
+
+      // Phản hồi từ ESP sau khi Handshake thành công
       if (rawLog.includes("[INFO] Auth success!")) {
-        devData.isAuthenticated = true;
-        updateAuthUIStatus(deviceId, true);
-        appendDeviceLog(deviceId, "[AUTH] Mở khóa thành công!", "SYSTEM");
+        appendDeviceLog(deviceId, "[SYSTEM] Xác thực kết nối thành công!", "SYSTEM");
         
-        // Yêu cầu thông tin Firmware sau khi đã xác thực
+        // Tự động lấy phiên bản Firmware
         setTimeout(async () => {
           try {
             const encoder = new TextEncoder();
@@ -412,10 +379,8 @@
         return;
       }
       
-      if (rawLog.includes("[ERR] Wrong passcode!") || rawLog.includes("[ERR] Access denied!")) {
-        devData.isAuthenticated = false;
-        updateAuthUIStatus(deviceId, false);
-        appendDeviceLog(deviceId, rawLog, "ERROR");
+      if (rawLog.includes("[ERR] Access denied!")) {
+        appendDeviceLog(deviceId, "[ERR] Từ chối truy cập! Sai Passcode hệ thống.", "ERROR");
         return;
       }
 
@@ -427,7 +392,7 @@
 
       appendDeviceLog(deviceId, rawLog, type);
 
-      // 解析 Data
+      // Extract thông số
       const verMatch  = rawLog.match(/VER:\s*([^\s|]+)/);
       const tempMatch = rawLog.match(/TEMP:\s*([\d\.]+)/);
       const voltMatch = rawLog.match(/VOLT:\s*([\d\.]+)/);
@@ -462,18 +427,6 @@
 
       if (currentTemp !== null || currentVolt !== null) {
         updateChartData(devData.chart, currentTemp, currentVolt);
-      }
-    }
-
-    function updateAuthUIStatus(deviceId, isAuthed) {
-      const badge = document.getElementById(`auth-badge-${deviceId}`);
-      if (!badge) return;
-      if (isAuthed) {
-        badge.className = "auth-badge authed";
-        badge.innerText = "ĐÃ XÁC THỰC";
-      } else {
-        badge.className = "auth-badge unauth";
-        badge.innerText = "CHƯA XÁC THỰC";
       }
     }
 
@@ -591,13 +544,6 @@
                 <span class="status-led"></span>
                 <span id="badge-${device.id}">ĐÃ NGẮT</span>
               </div>
-            </div>
-
-            <!-- Khung Xác thực Mật khẩu Cách 3 -->
-            <div class="auth-box">
-              <input type="password" id="pass-${device.id}" class="auth-input" value="797979" placeholder="PASSCODE" />
-              <button class="btn-auth" onclick="sendAuthPasscode('${device.id}')">XÁC THỰC</button>
-              <span id="auth-badge-${device.id}" class="auth-badge unauth">CHƯA XÁC THỰC</span>
             </div>
 
             <div class="card-actions">
