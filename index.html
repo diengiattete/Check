@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ESP Monitor Center - Auth</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  
+  <!-- Tích hợp Chart.js từ CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    :root {
+      --bg-dark: #0b0f17;
+      --card-bg: rgba(22, 31, 46, 0.7);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --accent-cyan: #00f2ff;
+      --accent-blue: #3b82f6;
+      --status-connected: #10b981;
+      --status-reconnect: #f59e0b;
+      --status-disconnected: #ef4444;
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --font-mono: 'JetBrains Mono', monospace;
+      --font-sans: 'Inter', sans-serif;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(0, 242, 255, 0.05) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(59, 130, 246, 0.05) 0px, transparent 50%);
+      background-attachment: fixed;
+      color: var(--text-main);
+      padding: 16px;
+      min-height: 100vh;
+    }
+
+    /* Navbar Header */
+    .header {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      padding: 18px 20px;
+      border-radius: 16px;
+      margin-bottom: 20px;
+      border: 1px solid var(--card-border);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    }
+
+    .header-title-group { display: flex; align-items: center; gap: 12px; }
+
+    .brand-icon {
+      width: 12px; height: 12px;
+      background: var(--accent-cyan);
+      border-radius: 50%;
+      box-shadow: 0 0 12px var(--accent-cyan);
+    }
+
+    .header-title {
+      font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #fff 0%, #a5f3fc 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+
+    .btn-add {
+      background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+      color: #ffffff; font-weight: 600; padding: 12px 20px;
+      border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 10px;
+      cursor: pointer; font-size: 14px; width: 100%;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      transition: all 0.2s ease; box-shadow: 0 4px 14px rgba(2, 132, 199, 0.3);
+    }
+
+    .btn-add:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(2, 132, 199, 0.5);
+      background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+    }
+
+    /* Grid Layout */
+    .esp-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+
+    /* Device Card */
+    .esp-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      border-radius: 16px; padding: 20px;
+      border: 1px solid var(--card-border);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      display: flex; flex-direction: column; gap: 16px;
+      transition: all 0.3s ease;
+    }
+
+    /* Cảnh báo Nguy hiểm (Alarm Glow) */
+    .esp-card.card-alarm {
+      border-color: #ef4444 !important;
+      box-shadow: 0 0 25px rgba(239, 68, 68, 0.4) !important;
+      animation: alertBlink 1.5s infinite alternate;
+    }
+
+    @keyframes alertBlink {
+      0% { background: rgba(239, 68, 68, 0.1); }
+      100% { background: var(--card-bg); }
+    }
+
+    .esp-card-header {
+      display: flex; flex-direction: column; gap: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 14px;
+    }
+
+    .device-info { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+    .device-title { display: flex; align-items: center; gap: 10px; }
+    .esp-name { font-size: 16px; font-weight: 700; color: #ffffff; font-family: var(--font-mono); }
+
+    .esp-version {
+      font-size: 10px; color: var(--accent-cyan);
+      background: rgba(0, 242, 255, 0.08); padding: 3px 8px;
+      border-radius: 6px; border: 1px solid rgba(0, 242, 255, 0.25);
+      font-family: var(--font-mono); font-weight: 700;
+    }
+
+    /* Pulse Status Indicator */
+    .status-container {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 11px; font-weight: 600; font-family: var(--font-mono);
+    }
+    .status-led { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .status-connected .status-led { background-color: var(--status-connected); box-shadow: 0 0 10px var(--status-connected); animation: pulse 2s infinite; }
+    .status-connected { color: var(--status-connected); }
+    .status-reconnecting .status-led { background-color: var(--status-reconnect); box-shadow: 0 0 10px var(--status-reconnect); animation: pulse 1s infinite; }
+    .status-reconnecting { color: var(--status-reconnect); }
+    .status-disconnected .status-led { background-color: var(--status-disconnected); box-shadow: 0 0 8px var(--status-disconnected); }
+    .status-disconnected { color: var(--status-disconnected); }
+
+    @keyframes pulse {
+      0% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.95); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    .card-actions { display: flex; gap: 8px; width: 100%; }
+
+    .btn-action {
+      flex: 1; border: none; padding: 8px 12px; border-radius: 8px;
+      cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s ease;
+    }
+    .btn-reconnect { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
+    .btn-reconnect:hover { background: rgba(59, 130, 246, 0.3); color: #fff; }
+    .btn-disconnect { background: rgba(239, 68, 68, 0.12); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .btn-disconnect:hover { background: rgba(239, 68, 68, 0.25); color: #fff; }
+
+    /* Metrics Grid */
+    .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .metric-box {
+      background: rgba(11, 15, 23, 0.6); border: 1px solid rgba(255, 255, 255, 0.04);
+      padding: 10px 6px; border-radius: 10px; text-align: center;
+    }
+    .metric-label { font-size: 9px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-bottom: 4px; }
+    .metric-val { font-size: 14px; font-weight: 700; color: #ffffff; font-family: var(--font-mono); }
+
+    /* Khung Biểu đồ Chart.js */
+    .chart-container {
+      position: relative; height: 160px; width: 100%;
+      background: rgba(11, 15, 23, 0.5); border-radius: 10px;
+      padding: 8px; border: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    /* Terminal Log & Filters */
+    .log-header {
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;
+    }
+    .log-title { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; }
+    .filter-btn-group { display: flex; gap: 4px; }
+    .btn-filter {
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+      color: var(--text-muted); font-size: 9px; padding: 2px 6px; border-radius: 4px; cursor: pointer;
+    }
+    .btn-filter.active { background: var(--accent-blue); color: #fff; border-color: var(--accent-blue); }
+
+    .esp-log {
+      background: #05070a; color: #10b981; font-family: var(--font-mono);
+      padding: 10px; height: 130px; overflow-y: auto; font-size: 11px;
+      line-height: 1.5; border-radius: 8px; white-space: pre-wrap; word-break: break-all;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    @media (min-width: 640px) {
+      body { padding: 24px; }
+      .header { flex-direction: row; justify-content: space-between; align-items: center; }
+      .btn-add { width: auto; }
+      .esp-grid { grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); }
+      .esp-card-header { flex-direction: row; justify-content: space-between; align-items: center; }
+      .device-info { width: auto; gap: 16px; }
+      .card-actions { width: auto; }
+      .btn-action { flex: initial; padding: 7px 14px; }
+      .metric-val { font-size: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="header-title-group">
+      <div class="brand-icon"></div>
+      <h2 class="header-title">ESP Monitor Center</h2>
+    </div>
+    <button class="btn-add" onclick="addNewESP()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      THÊM THIẾT BỊ
+    </button>
+  </div>
+
+  <div id="espContainer" class="esp-grid"></div>
+
+  <script>
+    const SERVICE_UUID           = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+    const CHARACTERISTIC_UUID_RX = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
+    const CHARACTERISTIC_UUID_TX = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
+
+    const HARDCODED_AUTH_PASS    = "797979"; // Mật khẩu cấu hình ngầm
+    const TEMP_ALARM_THRESHOLD   = 60.0; 
+    const Y_TEMP_MIN             = 40;             
+    const Y_TEMP_MAX             = 70;             
+
+    const connectedDevices = new Map();
+
+    // Audio Context còi cảnh báo
+    let audioCtx = null;
+    function playAlarmSound() {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.15);
+      } catch (e) { console.error(e); }
+    }
+
+    function getFormattedTime() {
+      const now = new Date();
+      const hrs = String(now.getHours()).padStart(2, '0');
+      const mins = String(now.getMinutes()).padStart(2, '0');
+      const secs = String(now.getSeconds()).padStart(2, '0');
+      return `[${hrs}:${mins}:${secs}]`;
+    }
+
+    async function addNewESP() {
+      try {
+        const device = await navigator.bluetooth.requestDevice({
+          filters: [{ namePrefix: 'ESP_' }],
+          optionalServices: [SERVICE_UUID]
+        });
+
+        if (connectedDevices.has(device.id)) {
+          alert("Thiết bị này đã có trên Dashboard!");
+          return;
+        }
+
+        const deviceData = {
+          device: device,
+          rxChar: null,
+          autoReconnect: true,
+          reconnectDelay: 2000,
+          timerId: null,
+          chart: null,
+          rawLogs: [],
+          filterMode: 'ALL'
+        };
+        connectedDevices.set(device.id, deviceData);
+
+        createDeviceCard(device);
+        initChart(device.id);
+
+        device.addEventListener('gattserverdisconnected', (event) => onDisconnected(event.target));
+        await connectDevice(device);
+
+      } catch (err) { console.error("Lỗi chọn thiết bị:", err); }
+    }
+
+    async function connectDevice(device) {
+      const devData = connectedDevices.get(device.id);
+      if (!devData) return;
+
+      try {
+        updateDeviceStatus(device.id, "reconnecting", "ĐANG KẾT NỐI");
+        appendDeviceLog(device.id, "[SYSTEM] Kết nối GATT Server...", "SYSTEM");
+
+        const server = await device.gatt.connect();
+        const service = await server.getPrimaryService(SERVICE_UUID);
+        
+        const txCharacteristic = await service.getCharacteristic(CHARACTERISTIC_UUID_TX);
+        devData.rxChar = await service.getCharacteristic(CHARACTERISTIC_UUID_RX);
+
+        await txCharacteristic.startNotifications();
+        txCharacteristic.addEventListener('characteristicvaluechanged', (e) => {
+          const val = new TextDecoder().decode(e.target.value);
+          parseAndUpdateUI(device.id, val.trim());
+        });
+
+        devData.reconnectDelay = 2000;
+        updateDeviceStatus(device.id, "connected", "ĐÃ KẾT NỐI BLE");
+        appendDeviceLog(device.id, "[SYSTEM] Kết nối thành công! Đang tự động gửi Handshake...", "SYSTEM");
+
+        // Gửi lệnh AUTH tự động dưới nền ngay khi kết nối thành công
+        setTimeout(() => {
+          autoSendHandshake(device.id);
+        }, 300);
+
+      } catch (err) {
+        appendDeviceLog(device.id, "[ERROR] " + err.message, "ERROR");
+        if (devData.autoReconnect) scheduleReconnect(device);
+        else updateDeviceStatus(device.id, "disconnected", "ĐÃ NGẮT");
+      }
+    }
+
+    // Tự động xác thực ngầm
+    async function autoSendHandshake(deviceId) {
+      const devData = connectedDevices.get(deviceId);
+      if (!devData || !devData.rxChar) return;
+
+      try {
+        const encoder = new TextEncoder();
+        await devData.rxChar.writeValue(encoder.encode(`AUTH:${HARDCODED_AUTH_PASS}`));
+      } catch (err) {
+        appendDeviceLog(deviceId, `[ERROR] Lỗi handshake: ${err.message}`, "ERROR");
+      }
+    }
+
+    function onDisconnected(device) {
+      const devData = connectedDevices.get(device.id);
+      if (!devData) return;
+      appendDeviceLog(device.id, "[WARN] Mất tín hiệu BLE!", "WARN");
+      if (devData.autoReconnect) scheduleReconnect(device);
+      else updateDeviceStatus(device.id, "disconnected", "ĐÃ NGẮT");
+    }
+
+    function scheduleReconnect(device) {
+      const devData = connectedDevices.get(device.id);
+      if (!devData || !devData.autoReconnect) return;
+      if (devData.timerId) clearTimeout(devData.timerId);
+
+      const delaySec = Math.round(devData.reconnectDelay / 1000);
+      updateDeviceStatus(device.id, "reconnecting", `THỬ LẠI (${delaySec}S)`);
+      devData.timerId = setTimeout(() => {
+        devData.reconnectDelay = Math.min(devData.reconnectDelay * 1.5, 30000);
+        connectDevice(device);
+      }, devData.reconnectDelay);
+    }
+
+    function parseAndUpdateUI(deviceId, rawLog) {
+      const devData = connectedDevices.get(deviceId);
+
+      // Phản hồi từ ESP sau khi Handshake thành công
+      if (rawLog.includes("[INFO] Auth success!")) {
+        appendDeviceLog(deviceId, "[SYSTEM] Xác thực kết nối thành công!", "SYSTEM");
+        
+        // Tự động lấy phiên bản Firmware
+        setTimeout(async () => {
+          try {
+            const encoder = new TextEncoder();
+            await devData.rxChar.writeValue(encoder.encode("GET_VER"));
+          } catch (e) { console.error(e); }
+        }, 200);
+        return;
+      }
+      
+      if (rawLog.includes("[ERR] Access denied!")) {
+        appendDeviceLog(deviceId, "[ERR] Từ chối truy cập! Sai Passcode hệ thống.", "ERROR");
+        return;
+      }
+
+      // Xác định loại Log
+      let type = "DATA";
+      if (rawLog.includes("[ERROR]") || rawLog.includes("[ERR]")) type = "ERROR";
+      else if (rawLog.includes("[WARN]")) type = "WARN";
+      else if (rawLog.includes("[SYSTEM]") || rawLog.includes("[INFO]")) type = "SYSTEM";
+
+      appendDeviceLog(deviceId, rawLog, type);
+
+      // Extract thông số
+      const verMatch  = rawLog.match(/VER:\s*([^\s|]+)/);
+      const tempMatch = rawLog.match(/TEMP:\s*([\d\.]+)/);
+      const voltMatch = rawLog.match(/VOLT:\s*([\d\.]+)/);
+      const inMatch   = rawLog.match(/IN:\s*(\d+)/);
+      const outMatch  = rawLog.match(/OUT:\s*(\d+)/);
+
+      if (verMatch)  document.getElementById(`ver-${deviceId}`).innerText  = "v" + verMatch[1].trim();
+      if (inMatch)   document.getElementById(`in-${deviceId}`).innerText   = inMatch[1];
+      if (outMatch)  document.getElementById(`out-${deviceId}`).innerText  = outMatch[1];
+
+      let currentTemp = null;
+      let currentVolt = null;
+
+      if (tempMatch) {
+        currentTemp = parseFloat(tempMatch[1]);
+        document.getElementById(`temp-${deviceId}`).innerText = currentTemp + "°C";
+
+        // Cảnh báo Nhiệt độ Quá ngưỡng 60°C
+        const cardEl = document.getElementById(`card-${deviceId}`);
+        if (currentTemp >= TEMP_ALARM_THRESHOLD) {
+          cardEl.classList.add('card-alarm');
+          playAlarmSound();
+        } else {
+          cardEl.classList.remove('card-alarm');
+        }
+      }
+
+      if (voltMatch) {
+        currentVolt = parseFloat(voltMatch[1]);
+        document.getElementById(`volt-${deviceId}`).innerText = currentVolt + "V";
+      }
+
+      if (currentTemp !== null || currentVolt !== null) {
+        updateChartData(devData.chart, currentTemp, currentVolt);
+      }
+    }
+
+    function initChart(deviceId) {
+      const ctx = document.getElementById(`chart-${deviceId}`).getContext('2d');
+      const chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [
+            {
+              label: 'Nhiệt độ (°C)',
+              data: [],
+              borderColor: '#ff7043',
+              backgroundColor: 'rgba(255, 112, 67, 0.15)',
+              borderWidth: 2,
+              fill: true,
+              tension: 0.3,
+              pointRadius: 2,
+              yAxisID: 'yTemp'
+            },
+            {
+              label: 'Điện áp (V)',
+              data: [],
+              borderColor: '#facc15',
+              backgroundColor: 'rgba(250, 204, 21, 0.1)',
+              borderWidth: 1.5,
+              fill: false,
+              tension: 0.3,
+              pointRadius: 2,
+              yAxisID: 'yVolt'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { display: false },
+            yTemp: {
+              type: 'linear',
+              position: 'left',
+              min: Y_TEMP_MIN,
+              max: Y_TEMP_MAX,
+              grid: { color: 'rgba(255, 255, 255, 0.05)' },
+              ticks: { color: '#ff7043', font: { size: 9 } }
+            },
+            yVolt: {
+              type: 'linear',
+              position: 'right',
+              min: 0,
+              max: 5,
+              grid: { drawOnChartArea: false },
+              ticks: { color: '#facc15', font: { size: 9 } }
+            }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+      connectedDevices.get(deviceId).chart = chart;
+    }
+
+    function updateChartData(chart, newTemp, newVolt) {
+      if (!chart) return;
+      const now = new Date().toLocaleTimeString();
+      chart.data.labels.push(now);
+      chart.data.datasets[0].data.push(newTemp);
+      chart.data.datasets[1].data.push(newVolt);
+
+      if (chart.data.labels.length > 20) {
+        chart.data.labels.shift();
+        chart.data.datasets[0].data.shift();
+        chart.data.datasets[1].data.shift();
+      }
+      chart.update('none');
+    }
+
+    function setLogFilter(deviceId, mode, btn) {
+      const devData = connectedDevices.get(deviceId);
+      if (!devData) return;
+      devData.filterMode = mode;
+      const btnGroup = btn.parentElement;
+      btnGroup.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderFilteredLogs(deviceId);
+    }
+
+    function renderFilteredLogs(deviceId) {
+      const devData = connectedDevices.get(deviceId);
+      const logDiv = document.getElementById(`log-${deviceId}`);
+      if (!devData || !logDiv) return;
+
+      const filtered = devData.rawLogs.filter(item => {
+        if (devData.filterMode === 'ALL') return true;
+        if (devData.filterMode === 'DATA') return item.type === 'DATA';
+        if (devData.filterMode === 'WARN') return item.type === 'WARN' || item.type === 'ERROR';
+        return true;
+      });
+
+      logDiv.innerHTML = filtered.map(i => i.msg).join('\n');
+      logDiv.scrollTop = logDiv.scrollHeight;
+    }
+
+    function createDeviceCard(device) {
+      const container = document.getElementById('espContainer');
+      const cardHtml = `
+        <div class="esp-card" id="card-${device.id}">
+          <div class="esp-card-header">
+            <div class="device-info">
+              <div class="device-title">
+                <span class="esp-name">${device.name || 'ESP'}</span>
+                <span class="esp-version" id="ver-${device.id}">v--</span>
+              </div>
+              <div id="status-${device.id}" class="status-container status-disconnected">
+                <span class="status-led"></span>
+                <span id="badge-${device.id}">ĐÃ NGẮT</span>
+              </div>
+            </div>
+
+            <div class="card-actions">
+              <button class="btn-action btn-reconnect" onclick="manualReconnect('${device.id}')">KẾT NỐI LẠI</button>
+              <button class="btn-action btn-disconnect" onclick="disconnectDevice('${device.id}')">XÓA</button>
+            </div>
+          </div>
+
+          <div class="metrics">
+            <div class="metric-box">
+              <div class="metric-label">Nhiệt độ</div>
+              <div class="metric-val" id="temp-${device.id}" style="color: #ff7043;">--°C</div>
+            </div>
+            <div class="metric-box">
+              <div class="metric-label">Điện áp</div>
+              <div class="metric-val" id="volt-${device.id}" style="color: #facc15;">--V</div>
+            </div>
+            <div class="metric-box">
+              <div class="metric-label">Xung IN</div>
+              <div class="metric-val" id="in-${device.id}" style="color: #38bdf8;">0</div>
+            </div>
+            <div class="metric-box">
+              <div class="metric-label">Xung OUT</div>
+              <div class="metric-val" id="out-${device.id}" style="color: #34d399;">0</div>
+            </div>
+          </div>
+
+          <div class="chart-container">
+            <canvas id="chart-${device.id}"></canvas>
+          </div>
+
+          <div>
+            <div class="log-header">
+              <span class="log-title">Console Terminal</span>
+              <div class="filter-btn-group">
+                <button class="btn-filter active" onclick="setLogFilter('${device.id}', 'ALL', this)">ALL</button>
+                <button class="btn-filter" onclick="setLogFilter('${device.id}', 'DATA', this)">DATA</button>
+                <button class="btn-filter" onclick="setLogFilter('${device.id}', 'WARN', this)">ERR/WARN</button>
+              </div>
+            </div>
+            <div class="esp-log" id="log-${device.id}"></div>
+          </div>
+        </div>
+      `;
+      container.insertAdjacentHTML('beforeend', cardHtml);
+    }
+
+    function manualReconnect(deviceId) {
+      const devData = connectedDevices.get(deviceId);
+      if (devData) {
+        if (devData.timerId) clearTimeout(devData.timerId);
+        devData.autoReconnect = true;
+        devData.reconnectDelay = 2000;
+        connectDevice(devData.device);
+      }
+    }
+
+    function disconnectDevice(deviceId) {
+      const devData = connectedDevices.get(deviceId);
+      if (devData) {
+        devData.autoReconnect = false;
+        if (devData.timerId) clearTimeout(devData.timerId);
+        if (devData.device.gatt.connected) devData.device.gatt.disconnect();
+        connectedDevices.delete(deviceId);
+      }
+      const cardEl = document.getElementById(`card-${deviceId}`);
+      if (cardEl) cardEl.remove();
+    }
+
+    function updateDeviceStatus(deviceId, state, labelText) {
+      const statusContainer = document.getElementById(`status-${deviceId}`);
+      const badge = document.getElementById(`badge-${deviceId}`);
+      if (!statusContainer || !badge) return;
+      statusContainer.className = `status-container status-${state}`;
+      badge.innerText = labelText;
+    }
+
+    function appendDeviceLog(deviceId, msg, type = "DATA") {
+      const devData = connectedDevices.get(deviceId);
+      if (!devData) return;
+
+      const timedMsg = `${getFormattedTime()} ${msg}`;
+
+      devData.rawLogs.push({ msg: timedMsg, type });
+      if (devData.rawLogs.length > 100) devData.rawLogs.shift();
+
+      renderFilteredLogs(deviceId);
+    }
+  </script>
+</body>
+</html>
